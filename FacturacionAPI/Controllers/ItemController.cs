@@ -2,6 +2,7 @@
 using FacturacionAPI.Models.Entities;
 using FacturacionAPI.Models.Enums;
 using FacturacionAPI.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,7 @@ namespace FacturacionAPI.Controllers
             _itemsService = itemsService;
         }
 
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateItem([FromBody] CreateItemDto dto)
         {
@@ -39,6 +41,24 @@ namespace FacturacionAPI.Controllers
                 Message = "Item creado exitosamente",
                 Data = item
             });
+        }
+
+        [Authorize]
+        [HttpGet("items-by-establishment")]
+        public async Task<IActionResult> getItemsByEstablishment()
+        {
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
+            var items = await _itemsService.getItemsByEstablishment(establishmentId);
+            if (items == null || !items.Any())
+                return NotFound(new
+                {
+                    Success = false,
+                    Message = "No se encontraron items para este establecimiento",
+                    Data = ModelState
+                });
+
+            return Ok(items);
         }
     }
 }

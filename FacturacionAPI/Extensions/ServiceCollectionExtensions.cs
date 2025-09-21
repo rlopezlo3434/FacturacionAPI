@@ -8,7 +8,7 @@ namespace FacturacionAPI.Extensions
         {
             // Aquí registras todos tus servicios
             services.AddScoped<EmployeeService>();
-            
+            services.AddScoped<ItemsService>();
 
             return services;
         }

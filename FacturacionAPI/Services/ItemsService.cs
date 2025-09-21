@@ -2,6 +2,7 @@
 using FacturacionAPI.Models.DTOs;
 using FacturacionAPI.Models.Entities;
 using FacturacionAPI.Models.Enums;
+using Microsoft.EntityFrameworkCore;
 
 namespace FacturacionAPI.Services
 {
@@ -38,6 +39,22 @@ namespace FacturacionAPI.Services
             await _context.SaveChangesAsync();
 
             return item;
+        }
+
+        public async Task<IEnumerable<ItemsDto>> getItemsByEstablishment(int establishmentId)
+        {
+            return await _context.Items
+                .Include(e => e.Establishment)
+                .Where(e => e.EstablishmentId == establishmentId)
+                .Select(e => new ItemsDto
+                {
+                    Id = e.Id,
+                    Item = e.Item.ToString() == "servicio" ? "Servicio" : "Producto",
+                    Description = e.Description,
+                    CreatedAt = e.CreatedAt.ToString("dd/MM/yyyy"),
+                    IsActive = e.IsActive
+                })
+                .ToListAsync();
         }
     }
 }

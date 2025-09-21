@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace FacturacionAPI.Models.Entities
 {
@@ -9,6 +10,7 @@ namespace FacturacionAPI.Models.Entities
 
         [Required]
         public int ItemId { get; set; }
+        [JsonIgnore]
         public Items Item { get; set; }
 
         public int Quantity { get; set; } = 0; // stock actual
