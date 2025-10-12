@@ -17,9 +17,12 @@ namespace FacturacionAPI.Controllers
             _employeeService = employeeService;
         }
 
+        [Authorize]
         [HttpGet("by-establishment")]
-        public async Task<IActionResult> GetEmployeesByEstablishment(int establishmentId)
+        public async Task<IActionResult> GetEmployeesByEstablishment()
         {
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
             var employees = await _employeeService.GetEmployeesByEstablishment(establishmentId);
             if (employees == null || !employees.Any())
                 return NotFound(new { Message = "No se encontraron empleados para este establecimiento" });
@@ -35,12 +38,17 @@ namespace FacturacionAPI.Controllers
 
             var currentUserId = int.Parse(User.FindFirst("id").Value);
 
-            //var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
             try
             {
-                var message = await _employeeService.CreateEmployee(dto, currentUserId);
-                return Ok(new { Success = true, Message = message });
+                var result = await _employeeService.CreateEmployee(dto, currentUserId, establishmentId);
+
+                if (!result.Success)
+                    return BadRequest(new { Success = false, Message = result.Message });
+
+
+                return Ok(new { Success = true, Message = result.Message });
             }
             catch (UnauthorizedAccessException ex)
             {
@@ -52,12 +60,41 @@ namespace FacturacionAPI.Controllers
             }
         }
 
+        [Authorize]
+        [HttpPost("updateState/{id}")]
+        public async Task<IActionResult> UpdateState(int id, [FromBody] UpdateStateRequest request)
+        {
+            if (request.IsActive == null)
+                return BadRequest(new { Success = false, Message = "Datos inválidos" });
+
+            var result = await _employeeService.UpdateEmployeeStateAsync(id, request.IsActive);
+
+            if (!result.Success)
+                return BadRequest(new { Success = false, Message = result.Message });
+
+            return Ok(new { Success = true, Message = "Estado actualizado correctamente" });
+        }
+
+        [HttpPost("updateEmployee/{id}")]
+        public async Task<IActionResult> UpdateEmployee(int id, [FromBody] UpdateEmployeeRequest request)
+        {
+
+            var result = await _employeeService.UpdateEmployeeAsync(id, request);
+
+            if (!result.Success)
+                return BadRequest(new { Success = false, Message = result.Message });
+
+            return Ok(new { Success = true, Message = "Empleado actualizado correctamente" });
+
+        }
+
+
 
         //[Authorize]
         //[HttpPost("create-client")]
-        //public async Task <IActionResult> CreateClient([FromBody] ClientCreateDto dto)
+        //public async Task<IActionResult> CreateClient([FromBody] ClientCreateDto dto)
         //{
-        //    if(!ModelState.IsValid) return BadRequest(ModelState);
+        //    if (!ModelState.IsValid) return BadRequest(ModelState);
 
         //    var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 

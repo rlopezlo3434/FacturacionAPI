@@ -17,13 +17,18 @@ namespace FacturacionAPI.Data
         public DbSet<Employee> Employee { get; set; }
         public DbSet<Client> Client { get; set; }
         public DbSet<ClientNumbers> ClientNumbers { get; set; }
-        public DbSet<Items> Items { get; set; }
+        public DbSet<Item> Items { get; set; }
         public DbSet<Stock> Stock { get; set; }
         public DbSet<StockMovement> StockMovement { get; set; }
+        public DbSet<ProductDefinition> ProductDefinition { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Companie>()
+               .Property(c => c.DocumentIdentificationType)
+               .HasConversion<string>();
+
+            modelBuilder.Entity<Establishment>()
                .Property(c => c.DocumentIdentificationType)
                .HasConversion<string>();
 
@@ -35,7 +40,7 @@ namespace FacturacionAPI.Data
                .Property(c => c.DocumentIdentificationType)
                .HasConversion<string>();
 
-            modelBuilder.Entity<Items>()
+            modelBuilder.Entity<ProductDefinition>()
                 .Property(c => c.Item)
                 .HasConversion<string>();
 

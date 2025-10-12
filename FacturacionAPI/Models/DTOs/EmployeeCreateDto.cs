@@ -18,8 +18,8 @@ namespace FacturacionAPI.Models.DTOs
 
         public string? Email { get; set; }
 
-        [Required]
-        public int EstablishmentId { get; set; }
+        //[Required]
+        //public int EstablishmentId { get; set; }
 
         [Required]
         public string Gender { get; set; }  // "M" o "F"
@@ -31,6 +31,6 @@ namespace FacturacionAPI.Models.DTOs
         public string Password { get; set; }   // luego se hashea
 
         [Required]
-        public int RoleId { get; set; }        // rol que se asignará al nuevo empleado
+        public string RoleCode { get; set; }        // rol que se asignará al nuevo empleado
     }
 }

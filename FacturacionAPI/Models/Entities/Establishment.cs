@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using FacturacionAPI.Models.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace FacturacionAPI.Models.Entities
 {
@@ -11,6 +12,10 @@ namespace FacturacionAPI.Models.Entities
         public string? Name { get; set; }
 
         public string? FullAddress { get; set; }
+
+        public DocumentIdentificationType DocumentIdentificationType { get; set; } // "RUC" o "DNI"
+
+        public string? DocumentIdentificationNumber { get; set; }
 
         public bool IsActive { get; set; } = true;
 

@@ -10,7 +10,7 @@ namespace FacturacionAPI.Models.Entities
 
         [Required]
         public int ItemId { get; set; }
-        public Items Item { get; set; }
+        public Item Item { get; set; }
 
         [Required]
         public MovementType MovementType { get; set; } // Entrada o Salida

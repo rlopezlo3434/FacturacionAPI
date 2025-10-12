@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    [Migration("20250921130545_TablesItems")]
-    partial class TablesItems
+    [Migration("20251012211144_update")]
+    partial class update
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -207,6 +207,13 @@ namespace FacturacionAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("DocumentIdentificationNumber")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("DocumentIdentificationType")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("FullAddress")
                         .HasColumnType("nvarchar(max)");
 
@@ -227,7 +234,7 @@ namespace FacturacionAPI.Migrations
                     b.ToTable("Establishment");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.Items", b =>
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.Item", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -238,12 +245,47 @@ namespace FacturacionAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("EstablishmentId")
+                        .IsRequired()
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ProductDefinitionId")
+                        .IsRequired()
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal?>("Value")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductDefinitionId");
+
+                    b.ToTable("Items");
+                });
+
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.ProductDefinition", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<string>("Code")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("EstablishmentId")
-                        .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -257,9 +299,7 @@ namespace FacturacionAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("EstablishmentId");
-
-                    b.ToTable("Items");
+                    b.ToTable("ProductDefinition");
                 });
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Role", b =>
@@ -409,20 +449,20 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Company");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.Items", b =>
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.Item", b =>
                 {
-                    b.HasOne("FacturacionAPI.Models.Entities.Establishment", "Establishment")
+                    b.HasOne("FacturacionAPI.Models.Entities.ProductDefinition", "ProductDefinition")
                         .WithMany()
-                        .HasForeignKey("EstablishmentId")
+                        .HasForeignKey("ProductDefinitionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Establishment");
+                    b.Navigation("ProductDefinition");
                 });
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Stock", b =>
                 {
-                    b.HasOne("FacturacionAPI.Models.Entities.Items", "Item")
+                    b.HasOne("FacturacionAPI.Models.Entities.Item", "Item")
                         .WithOne("Stock")
                         .HasForeignKey("FacturacionAPI.Models.Entities.Stock", "ItemId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -433,7 +473,7 @@ namespace FacturacionAPI.Migrations
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.StockMovement", b =>
                 {
-                    b.HasOne("FacturacionAPI.Models.Entities.Items", "Item")
+                    b.HasOne("FacturacionAPI.Models.Entities.Item", "Item")
                         .WithMany()
                         .HasForeignKey("ItemId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -447,7 +487,7 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Numbers");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.Items", b =>
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.Item", b =>
                 {
                     b.Navigation("Stock")
                         .IsRequired();

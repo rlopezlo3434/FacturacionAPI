@@ -89,6 +89,7 @@ namespace FacturacionAPI.Controllers
                     Email = user.Email,
                     Username = user.Username,
                     RoleName = user.Role.Name,
+                    RoleCode = user.Role.Code,
                     Gender = user.Gender.ToString() == "M" ? "Hombre" : "Mujer",
                     IsActive = user.IsActive
                 }

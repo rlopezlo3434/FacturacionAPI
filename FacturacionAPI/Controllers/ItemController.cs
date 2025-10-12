@@ -19,7 +19,7 @@ namespace FacturacionAPI.Controllers
             _itemsService = itemsService;
         }
 
-        [Authorize]
+        //[Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateItem([FromBody] CreateItemDto dto)
         {

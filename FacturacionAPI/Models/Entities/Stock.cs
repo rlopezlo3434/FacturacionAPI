@@ -11,7 +11,7 @@ namespace FacturacionAPI.Models.Entities
         [Required]
         public int ItemId { get; set; }
         [JsonIgnore]
-        public Items Item { get; set; }
+        public Item Item { get; set; }
 
         public int Quantity { get; set; } = 0; // stock actual
         public int MinStock { get; set; } = 0; // opcional, para alertas de reabastecimiento
