@@ -5,7 +5,7 @@ namespace FacturacionAPI.Models.DTOs
     public class CreateItemDto
     {
         public ItemEnum Item { get; set; } // PRODUCT o SERVICE
-        public string Codigo { get; set; }
+        public string Code { get; set; }
         public string Description { get; set; }
         public int EstablishmentId { get; set; }
         public decimal Value { get; set; }

@@ -87,32 +87,7 @@ namespace FacturacionAPI.Controllers
             return Ok(new { Success = true, Message = "Empleado actualizado correctamente" });
 
         }
-
-
-
-        //[Authorize]
-        //[HttpPost("create-client")]
-        //public async Task<IActionResult> CreateClient([FromBody] ClientCreateDto dto)
-        //{
-        //    if (!ModelState.IsValid) return BadRequest(ModelState);
-
-        //    var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
-
-        //    try
-        //    {
-        //        var message = await _employeeService.CreateClient(dto, establishmentId);
-        //        return Ok(new { Success = true, Message = message });
-        //    }
-        //    catch (UnauthorizedAccessException ex)
-        //    {
-        //        return StatusCode(StatusCodes.Status403Forbidden, new { Success = false, Message = ex.Message });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return BadRequest(new { Success = false, Message = ex.Message });
-        //    }
-
-        //}
+        
 
     }
 }

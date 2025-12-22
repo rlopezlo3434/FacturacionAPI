@@ -19,7 +19,7 @@ namespace FacturacionAPI.Controllers
             _itemsService = itemsService;
         }
 
-        //[Authorize]
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateItem([FromBody] CreateItemDto dto)
         {
@@ -33,14 +33,30 @@ namespace FacturacionAPI.Controllers
                 });
             }
 
-            var item = await _itemsService.CreateItemAsync(dto);
+            var result = await _itemsService.CreateItemAsync(dto);
+
+            if (!result.Success)
+                return BadRequest(new { Success = false, Message = result.Message });
 
             return Ok(new
             {
                 Success = true,
-                Message = "Item creado exitosamente",
-                Data = item
+                Message = "Item creado exitosamente"
             });
+        }
+
+        [HttpPost("updateItem")]
+        public async Task<IActionResult> UpdateItem([FromBody] CreateItemDto dto)
+        {
+            if (dto == null)
+                return BadRequest("Datos inválidos o ID de item no especificado.");
+
+            var result = await _itemsService.UpdateItemAsync(dto);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
         }
 
         [Authorize]
@@ -59,6 +75,21 @@ namespace FacturacionAPI.Controllers
                 });
 
             return Ok(items);
+        }
+
+        [Authorize]
+        [HttpPost("updateState/{id}")]
+        public async Task<IActionResult> UpdateState(int id, [FromBody] UpdateStateRequest request)
+        {
+            if (request.IsActive == null)
+                return BadRequest(new { Success = false, Message = "Datos inválidos" });
+
+            var result = await _itemsService.UpdateItemStateAsync(id, request.IsActive);
+
+            if (!result.Success)
+                return BadRequest(new { Success = false, Message = result.Message });
+
+            return Ok(new { Success = true, Message = "Estado actualizado correctamente" });
         }
     }
 }

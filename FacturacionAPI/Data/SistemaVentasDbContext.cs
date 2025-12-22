@@ -21,7 +21,15 @@ namespace FacturacionAPI.Data
         public DbSet<Stock> Stock { get; set; }
         public DbSet<StockMovement> StockMovement { get; set; }
         public DbSet<ProductDefinition> ProductDefinition { get; set; }
-
+        public DbSet<ChildrenClient> ChildrenClient { get; set; }
+        public DbSet<Promotion> Promotion { get; set; }
+        public DbSet<Venta> Ventas { get; set; }
+        public DbSet<VentaDetalle> ventaDetalles { get; set; }
+        public DbSet<VentaEmpleado> ventaEmpleados { get; set; }
+        public DbSet<AnulacionDocumento> AnulacionDocumento { get; set; }
+        public DbSet<CajaApertura> CajaAperturas { get; set; }
+        public DbSet<CajaMovimiento> CajaMovimientos { get; set; }
+        public DbSet<CajaCierre> CajaCierres { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Companie>()
@@ -46,6 +54,10 @@ namespace FacturacionAPI.Data
 
             modelBuilder.Entity< StockMovement>()
                 .Property(c => c.MovementType)
+                .HasConversion<string>();
+
+            modelBuilder.Entity<Venta>()
+                .Property(c => c.MetodoPago)
                 .HasConversion<string>();
 
             base.OnModelCreating(modelBuilder);

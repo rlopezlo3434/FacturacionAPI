@@ -4,6 +4,7 @@ using FacturacionAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    partial class SistemaVentasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251019011559_fixPromotion")]
+    partial class fixPromotion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,143 +23,6 @@ namespace FacturacionAPI.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder, 1L, 1);
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.AnulacionDocumento", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<string>("CodigoUnico")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EnlaceCdr")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EnlacePdf")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EnlaceXml")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("FechaRegistro")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Motivo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("VentaId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VentaId");
-
-                    b.ToTable("AnulacionDocumento");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.CajaApertura", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<bool>("Cerrada")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("EstablishmentId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaApertura")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("MontoApertura")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EstablishmentId");
-
-                    b.ToTable("CajaAperturas");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.CajaCierre", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<int>("CajaAperturaId")
-                        .HasColumnType("int");
-
-                    b.Property<decimal>("EfectivoCalculado")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("EfectivoContado")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<DateTime>("FechaCierre")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Observaciones")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CajaAperturaId")
-                        .IsUnique();
-
-                    b.ToTable("CajaCierres");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.CajaMovimiento", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<int>("CajaAperturaId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaRegistro")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("Monto")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Motivo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("VentaId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CajaAperturaId");
-
-                    b.HasIndex("VentaId");
-
-                    b.ToTable("CajaMovimientos");
-                });
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.ChildrenClient", b =>
                 {
@@ -397,20 +262,8 @@ namespace FacturacionAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("SerieBoleta")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("SerieFactura")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TokenNubefact")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
-
-                    b.Property<string>("urlNubefact")
-                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
@@ -627,199 +480,6 @@ namespace FacturacionAPI.Migrations
                     b.ToTable("StockMovement");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.Venta", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<string>("ClienteDocumento")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("ClienteNombre")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("CodigoHash")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("EnlacePdf")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("EstablishmentId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaEmision")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsAnnulled")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("MetodoPago")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Numero")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Observaciones")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Serie")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("TipoComprobante")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalGravada")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("TotalIgv")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<bool>("UsadoParaDescuento")
-                        .HasColumnType("bit");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EstablishmentId");
-
-                    b.ToTable("Ventas");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.VentaDetalle", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<decimal>("Cantidad")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("Codigo")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Descripcion")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<decimal>("Igv")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("PrecioUnitario")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("Subtotal")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("Total")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("ValorUnitario")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("VentaId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VentaId");
-
-                    b.ToTable("ventaDetalles");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.VentaEmpleado", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<int>("EmpleadoId")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("FechaRegistro")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("ProductDefinitionId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("VentaId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EmpleadoId");
-
-                    b.HasIndex("ProductDefinitionId");
-
-                    b.HasIndex("VentaId");
-
-                    b.ToTable("ventaEmpleados");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.AnulacionDocumento", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.Venta", "venta")
-                        .WithMany()
-                        .HasForeignKey("VentaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("venta");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.CajaApertura", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.Establishment", "Establishment")
-                        .WithMany()
-                        .HasForeignKey("EstablishmentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Establishment");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.CajaCierre", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.CajaApertura", "CajaApertura")
-                        .WithOne("Cierre")
-                        .HasForeignKey("FacturacionAPI.Models.Entities.CajaCierre", "CajaAperturaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CajaApertura");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.CajaMovimiento", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.CajaApertura", "CajaApertura")
-                        .WithMany("Movimientos")
-                        .HasForeignKey("CajaAperturaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FacturacionAPI.Models.Entities.Venta", "Venta")
-                        .WithMany()
-                        .HasForeignKey("VentaId");
-
-                    b.Navigation("CajaApertura");
-
-                    b.Navigation("Venta");
-                });
-
             modelBuilder.Entity("FacturacionAPI.Models.Entities.ChildrenClient", b =>
                 {
                     b.HasOne("FacturacionAPI.Models.Entities.Client", "Client")
@@ -935,61 +595,6 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Item");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.Venta", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.Establishment", "Establishment")
-                        .WithMany()
-                        .HasForeignKey("EstablishmentId");
-
-                    b.Navigation("Establishment");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.VentaDetalle", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.Venta", "Venta")
-                        .WithMany("Detalles")
-                        .HasForeignKey("VentaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Venta");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.VentaEmpleado", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.Employee", "Empleado")
-                        .WithMany()
-                        .HasForeignKey("EmpleadoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FacturacionAPI.Models.Entities.ProductDefinition", "productDefinition")
-                        .WithMany()
-                        .HasForeignKey("ProductDefinitionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FacturacionAPI.Models.Entities.Venta", "Venta")
-                        .WithMany()
-                        .HasForeignKey("VentaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Empleado");
-
-                    b.Navigation("Venta");
-
-                    b.Navigation("productDefinition");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.CajaApertura", b =>
-                {
-                    b.Navigation("Cierre")
-                        .IsRequired();
-
-                    b.Navigation("Movimientos");
-                });
-
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Client", b =>
                 {
                     b.Navigation("Numbers");
@@ -999,11 +604,6 @@ namespace FacturacionAPI.Migrations
                 {
                     b.Navigation("Stock")
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.Venta", b =>
-                {
-                    b.Navigation("Detalles");
                 });
 #pragma warning restore 612, 618
         }

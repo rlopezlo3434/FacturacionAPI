@@ -1,10 +1,11 @@
-using FacturacionAPI.Data;
+ï»¿using FacturacionAPI.Data;
 using FacturacionAPI.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,11 +29,11 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Configuración de la conexión
+// ConfiguraciÃ³n de la conexiÃ³n
 builder.Services.AddDbContext<SistemaVentasDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Agregar servicios de la aplicación
+// Agregar servicios de la aplicaciÃ³n
 builder.Services.AddApplicationServices();
 
 
@@ -40,6 +41,7 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
+builder.Services.AddHttpClient();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -61,7 +63,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
 app.UseAuthentication();

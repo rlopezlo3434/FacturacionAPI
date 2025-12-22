@@ -17,6 +17,11 @@ namespace FacturacionAPI.Models.Entities
 
         public string? DocumentIdentificationNumber { get; set; }
 
+        public string? urlNubefact { get; set; }
+        public string? TokenNubefact { get; set; }
+        public string? SerieBoleta { get; set; }
+        public string? SerieFactura { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         [Required]

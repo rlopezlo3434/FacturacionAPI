@@ -13,7 +13,6 @@ namespace FacturacionAPI.Models.Entities
         public ProductDefinition ProductDefinition { get; set; }
 
         [Required]
-        // Relaciones
         public int? EstablishmentId { get; set; }
         public Establishment Establishment { get; set; }
         public decimal? Value { get; set; }

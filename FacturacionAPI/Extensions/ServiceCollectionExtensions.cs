@@ -9,6 +9,12 @@ namespace FacturacionAPI.Extensions
             // Aquí registras todos tus servicios
             services.AddScoped<EmployeeService>();
             services.AddScoped<ItemsService>();
+            services.AddScoped<EstablishmentService>();
+            services.AddScoped<ClientService>();
+            services.AddScoped<PromotionService>();
+            services.AddScoped<FacturacionService>();
+            services.AddScoped<KardexService>();
+            services.AddScoped<CajaService>();
 
             return services;
         }
