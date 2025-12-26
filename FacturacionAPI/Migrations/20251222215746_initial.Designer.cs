@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    [Migration("20251129112112_descuento")]
-    partial class descuento
+    [Migration("20251222215746_initial")]
+    partial class initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
