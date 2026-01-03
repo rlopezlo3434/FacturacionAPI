@@ -12,10 +12,7 @@ namespace FacturacionAPI.Models.Entities
         public string Name { get; set; }
 
         [Required]
-        public PromotionTypeEnum Type { get; set; }
-
-        [Required]
-        public decimal Value { get; set; } // valor del descuento
+        public string Code { get; set; }
 
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }

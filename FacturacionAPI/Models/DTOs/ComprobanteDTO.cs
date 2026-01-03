@@ -16,6 +16,8 @@ namespace FacturacionAPI.Models.DTOs
         public string cliente_tipo_documento { get; set; }
         public MetodoPago metodo_pago { get; set; }
         public DateTime fecha_emision { get; set; }
+        public string codigoPromocional { get; set; }
+
 
     }
     public class VentaItem

@@ -30,6 +30,7 @@ namespace FacturacionAPI.Data
         public DbSet<CajaApertura> CajaAperturas { get; set; }
         public DbSet<CajaMovimiento> CajaMovimientos { get; set; }
         public DbSet<CajaCierre> CajaCierres { get; set; }
+        public DbSet<CodigosUtilizados> CodigosUtilizados { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Companie>()

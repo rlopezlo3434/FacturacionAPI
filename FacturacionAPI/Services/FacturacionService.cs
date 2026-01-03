@@ -151,6 +151,27 @@ namespace FacturacionAPI.Services
         }
         public async Task<object> RegistrarVentaAsync(VentaRequest request, int establishmentId)
         {
+            if (!string.IsNullOrWhiteSpace(request.codigoPromocional))
+            {
+                // Verificar que exista
+                var promo = await _context.Promotion
+                    .FirstOrDefaultAsync(p =>
+                        p.Code == request.codigoPromocional &&
+                        p.EstablishmentId == establishmentId);
+
+                if (promo == null)
+                    throw new ApplicationException("El código promocional no existe.");
+
+                // Verificar que NO haya sido usado por el cliente
+                var yaUsado = await _context.CodigosUtilizados
+                    .AnyAsync(c =>
+                        c.Code == request.codigoPromocional &&
+                        c.Client.DocumentIdentificationNumber == request.cliente_numero);
+
+                if (yaUsado)
+                    throw new ApplicationException("Este código promocional ya fue usado por este cliente.");
+            }
+
             var establishment = await _context.Establishment.FindAsync(establishmentId);
 
             // 🔹 Construir items
@@ -330,6 +351,26 @@ namespace FacturacionAPI.Services
 
                 try
                 {
+
+                    if (!string.IsNullOrWhiteSpace(request.codigoPromocional))
+                    {
+                        var cliente = await _context.Client
+                            .FirstOrDefaultAsync(c =>
+                                c.DocumentIdentificationNumber == request.cliente_numero);
+
+                        if (cliente != null)
+                        {
+                            _context.CodigosUtilizados.Add(new CodigosUtilizados
+                            {
+                                ClientId = cliente.Id,
+                                Code = request.codigoPromocional
+                            });
+
+                            await _context.SaveChangesAsync();
+                        }
+                    }
+
+
                     await _cajaService.RegistrarMovimientoPorVenta(venta.Id);
                 }
                 catch (Exception ex)
@@ -602,15 +643,98 @@ namespace FacturacionAPI.Services
             return reporte;
 
         }
+
+        public async Task<List<ChildrenClientReporteDto>> GenerarReporteClientes(int establishmentId)
+        {
+            var result = await _context.ChildrenClient
+                    .AsNoTracking()
+                    .Where(c => c.Client.EstablishmentId == establishmentId && c.IsActive)
+                    .SelectMany(c => c.Client.Numbers.DefaultIfEmpty(), (child, phone) => new ChildrenClientReporteDto
+                    {
+                        // Cliente
+                        ClientFirstName = child.Client.FirstName,
+                        ClientLastName = child.Client.LastName,
+                        DocumentType = child.Client.DocumentIdentificationType.ToString(),
+                        DocumentNumber = child.Client.DocumentIdentificationNumber,
+                        Email = child.Client.Email,
+                        Gender = child.Client.Gender.ToString(),
+                        IsActive = child.Client.IsActive,
+                        AcceptsMarketing = child.Client.AcceptsMarketing,
+
+                        PhoneNumber = phone != null ? phone.Number : null,
+
+                        // Hijo
+                        ChildFirstName = child.FirstName,
+                        ChildLastName = child.LastName,
+                        FechaCumpleanios = child.FechaCumpleanios
+                    })
+                    .ToListAsync();
+
+            return result;
+        }
+
+        public async Task<List<ReporteDiarioDto>> GenerarReporteAcumulado(int establishmentId, DateTime fecha)
+        {
+
+            var hoy = DateTime.Today;
+
+            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+            var inicioMesSiguiente = inicioMes.AddMonths(1);
+
+            var ventas = await _context.Ventas
+                .Include(v => v.Detalles)
+                .Where(v =>
+                    v.EstablishmentId == establishmentId &&
+                    v.FechaEmision >= inicioMes &&
+                    v.FechaEmision < inicioMesSiguiente
+                )
+                .OrderBy(v => v.FechaEmision)
+                .ToListAsync();
+
+            // Mapear a DTO
+            var reporte = ventas.Select(v => new ReporteDiarioDto
+            {
+                Id = v.Id,
+                TipoComprobante = v.TipoComprobante,
+                Serie = v.Serie,
+                Numero = v.Numero,
+                ClienteDocumento = v.ClienteDocumento,
+                ClienteNombre = v.ClienteNombre,
+                FechaEmision = v.FechaEmision,
+                Observaciones = v.Observaciones,
+                EstadoSunat = v.IsAnnulled ? "SI" : "NO",
+                MetodoPago = v.MetodoPago.ToString(),
+                Detalles = v.Detalles.Select(d => new ReporteDetalleDto
+                {
+                    Codigo = d.Codigo,
+                    Descripcion = d.Descripcion,
+                    Cantidad = d.Cantidad,
+                    ValorUnitario = d.ValorUnitario,
+                    PrecioUnitario = d.PrecioUnitario,
+                    Subtotal = d.Subtotal,
+                    Igv = d.Igv,
+                    Total = d.Total
+                }).ToList()
+            }).ToList();
+
+            return reporte;
+        }
+
         public async Task<List<ReporteDiarioDto>> GenerarReporteDiario(int establishmentId, DateTime fecha)
         {
 
-            //var fecha = new DateTime(2025, 11, 23);
-            // Traer todas las ventas del día para el establecimiento
+            var hoy = DateTime.Today;
+
+            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+            var inicioMesSiguiente = inicioMes.AddMonths(1);
+
             var ventas = await _context.Ventas
                 .Include(v => v.Detalles)
-                .Where(v => v.EstablishmentId == establishmentId && v.FechaEmision >= fecha
-        && v.FechaEmision < fecha.AddDays(1))
+                .Where(v =>
+                    v.EstablishmentId == establishmentId &&
+                    v.FechaEmision >= inicioMes &&
+                    v.FechaEmision < inicioMesSiguiente
+                )
                 .OrderBy(v => v.FechaEmision)
                 .ToListAsync();
 

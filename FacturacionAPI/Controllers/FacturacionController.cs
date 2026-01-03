@@ -405,12 +405,87 @@ namespace FacturacionAPI.Controllers
                 fileName);
         }
 
+        [Authorize]
+        [HttpGet("reporte-Clientes")] 
+        public async Task<IActionResult> ReporteClientes(DateTime fecha)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // ✅ funciona bien hasta EPPlus 7.2.2
+
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
+
+            var clientes = await _facturacionService.GenerarReporteClientes(establishmentId);
+
+            using var package = new ExcelPackage();
+            var worksheet = package.Workbook.Worksheets.Add("Clientes - Hijos");
+
+            int row = 1;
+
+            // ENCABEZADOS
+            worksheet.Cells[row, 1].Value = "Cliente Nombre";
+            worksheet.Cells[row, 2].Value = "Cliente Apellido";
+            worksheet.Cells[row, 3].Value = "Tipo Documento";
+            worksheet.Cells[row, 4].Value = "N° Documento";
+            worksheet.Cells[row, 5].Value = "Email";
+            worksheet.Cells[row, 6].Value = "Género";
+            worksheet.Cells[row, 7].Value = "Activo";
+            worksheet.Cells[row, 8].Value = "Acepta Marketing";
+            worksheet.Cells[row, 9].Value = "Teléfono";
+            worksheet.Cells[row, 10].Value = "Hijo Nombre";
+            worksheet.Cells[row, 11].Value = "Hijo Apellido";
+            worksheet.Cells[row, 12].Value = "Fecha Cumpleaños";
+
+            using (var range = worksheet.Cells[row, 1, row, 12])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            row++;
+
+            // DATA
+            foreach (var c in clientes)
+            {
+                worksheet.Cells[row, 1].Value = c.ClientFirstName;
+                worksheet.Cells[row, 2].Value = c.ClientLastName;
+                worksheet.Cells[row, 3].Value = c.DocumentType;
+                worksheet.Cells[row, 4].Value = c.DocumentNumber;
+                worksheet.Cells[row, 5].Value = c.Email ?? "";
+                worksheet.Cells[row, 6].Value = c.Gender;
+                worksheet.Cells[row, 7].Value = c.IsActive ? "Sí" : "No";
+                worksheet.Cells[row, 8].Value = c.AcceptsMarketing ? "Sí" : "No";
+                worksheet.Cells[row, 9].Value = c.PhoneNumber ?? "";
+
+                worksheet.Cells[row, 10].Value = c.ChildFirstName;
+                worksheet.Cells[row, 11].Value = c.ChildLastName;
+
+                if (c.FechaCumpleanios.HasValue)
+                {
+                    worksheet.Cells[row, 12].Value = c.FechaCumpleanios.Value;
+                    worksheet.Cells[row, 12].Style.Numberformat.Format = "dd/MM/yyyy";
+                }
+
+                row++;
+            }
+
+            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+            var excelBytes = package.GetAsByteArray();
+            var nombreArchivo = $"ReporteClientes_{DateTime.Now:yyyyMMdd}.xlsx";
+
+            return File(
+                excelBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                nombreArchivo
+            );
+        }
 
         [Authorize]
         [HttpGet("reporte-diario")]
         public async Task<IActionResult> ReporteDiario(DateTime fecha)
         {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; // ✅ funciona bien hasta EPPlus 7.2.2
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial; 
 
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
@@ -581,7 +656,7 @@ namespace FacturacionAPI.Controllers
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
 
-            var ventas = await _facturacionService.GenerarReporteDiario(establishmentId, fecha);
+            var ventas = await _facturacionService.GenerarReporteAcumulado(establishmentId, fecha);
 
             using var package = new ExcelPackage();
             var ws = package.Workbook.Worksheets.Add("Reporte Diario");

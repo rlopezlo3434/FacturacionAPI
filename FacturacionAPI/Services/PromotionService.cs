@@ -18,8 +18,7 @@ namespace FacturacionAPI.Services
             var promo = new Promotion
             {
                 Name = dto.Name,
-                Type = dto.Type,
-                Value = dto.Value,
+                Code = dto.Code,
                 StartDate = dto.StartDate,
                 EndDate = dto.EndDate,
                 EstablishmentId = establishmentId,
@@ -40,8 +39,7 @@ namespace FacturacionAPI.Services
                 {
                     Id = p.Id,
                     Name = p.Name,
-                    Type = p.Type.ToString(),
-                    Value = p.Value,
+                    Code = p.Code,
                     StartDate = p.StartDate,
                     EndDate = p.EndDate,
                     IsActive = p.IsActive
@@ -56,8 +54,7 @@ namespace FacturacionAPI.Services
                 return (false, "No se encontró la promoción.");
 
             if (!string.IsNullOrEmpty(dto.Name)) promo.Name = dto.Name;
-            if (dto.Type.HasValue) promo.Type = dto.Type.Value;
-            if (dto.Value.HasValue) promo.Value = dto.Value.Value;
+            if (!string.IsNullOrEmpty(dto.Code)) promo.Code = dto.Code;
             if (dto.StartDate.HasValue) promo.StartDate = dto.StartDate.Value;
             if (dto.EndDate.HasValue) promo.EndDate = dto.EndDate.Value;
             if (dto.IsActive.HasValue) promo.IsActive = dto.IsActive.Value;
