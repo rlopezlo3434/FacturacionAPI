@@ -338,5 +338,112 @@ namespace FacturacionAPI.Services
             await _context.SaveChangesAsync();
         }
 
+        public async Task<TarjetaClienteResponse> GetVisitaCliente(int clienteId)
+        {
+            var cliente = await _context.Client
+                .FirstOrDefaultAsync(x => x.Id == clienteId);
+
+
+            //var visitas = await _context.VisitaClientes
+            //   .Where(x => x.ClienteId == clienteId &&
+            //        x.CicloTarjeta == cliente.TarjetaCicloActual)
+            //   .CountAsync();
+
+            var visitas = await _context.VisitaClientes
+                .Where(x => x.ClienteId == clienteId &&
+                     x.CicloTarjeta == cliente.TarjetaCicloActual)
+                .OrderBy(x => x.Fecha)
+                .ToListAsync();
+
+            //// generar 12 casillas
+            //var casillas = Enumerable.Range(1, 12)
+            //    .Select(i => new CasillaDto
+            //    {
+            //        Id = i,
+            //        Marcada = i <= visitas,
+            //        Label = ObtenerLabelPorCasilla(i),
+            //    })
+            //    .ToList();
+
+            var casillas = Enumerable.Range(1, 12)
+                                .Select(i => new CasillaDto
+                                {
+                                    Id = i,
+                                    Marcada = i <= visitas.Count,
+                                    Label = ObtenerLabelPorCasilla(i),
+
+                                    // 👇 fecha solo para casillas marcadas
+                                    Fecha = i <= visitas.Count
+                                        ? visitas[i - 1].Fecha
+                                        : (DateTime?)null
+                                })
+                                .ToList();
+
+            return new TarjetaClienteResponse
+            {
+                ClienteId = clienteId,
+                TotalVisitas = visitas.Count,
+                Casillas = casillas,
+                DescuentoActual = CalcularDescuento(visitas.Count)
+            };
+        }
+
+        private string? ObtenerLabelPorCasilla(int id)
+        {
+            return id switch
+            {
+                3 => "5% desc.",
+                6 => "10% desc.",
+                9 => "15% desc.",
+                12 => "20% desc.",
+                _ => null
+            };
+        }
+
+        private int CalcularDescuento(int visitas)
+        {
+            return visitas switch
+            {
+                3 => 5,
+                6 => 10,
+                9 => 15,
+                12 => 20,
+                _ => 0
+            };
+        }
+
+        public async Task<TarjetaClienteResponse> RegistrarVisitaCliente(int clienteId)
+        {
+            var cliente = await _context.Client
+            .FirstOrDefaultAsync(x => x.Id == clienteId);
+
+            if (cliente != null)
+            {
+                var visita = new VisitaCliente
+                {
+                    ClienteId = clienteId,
+                    Fecha = DateTime.Now,
+                    CicloTarjeta = cliente.TarjetaCicloActual
+                };
+
+                _context.VisitaClientes.Add(visita);
+                await _context.SaveChangesAsync();
+            }
+            
+
+            return await GetVisitaCliente(clienteId);
+        }
+
+        public async Task<TarjetaClienteResponse> ResetTarjeta(int clienteId)
+        {
+            var cliente = await _context.Client
+                .FirstOrDefaultAsync(c => c.Id == clienteId);
+
+            cliente.TarjetaCicloActual++;
+
+            await _context.SaveChangesAsync();
+
+            return await GetVisitaCliente(clienteId);
+        }
     }
 }

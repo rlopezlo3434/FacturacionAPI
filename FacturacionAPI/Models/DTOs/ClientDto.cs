@@ -36,4 +36,9 @@ namespace FacturacionAPI.Models.DTOs
         public bool IsActive { get; set; }
         public ClientDto Client { get; set; }
     }
+
+    public class RegistrarVisitaRequest
+    {
+        public int ClienteId { get; set; }
+    }
 }

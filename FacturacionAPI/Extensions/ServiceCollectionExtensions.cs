@@ -15,7 +15,7 @@ namespace FacturacionAPI.Extensions
             services.AddScoped<FacturacionService>();
             services.AddScoped<KardexService>();
             services.AddScoped<CajaService>();
-
+            services.AddScoped<DashboardService>();
             return services;
         }
     }

@@ -33,5 +33,7 @@ namespace FacturacionAPI.Models.Entities
         public bool IsActive { get; set; } = true;
 
         public bool AcceptsMarketing { get; set; } = false;
+
+        public int TarjetaCicloActual { get; set; } = 1;
     }
 }

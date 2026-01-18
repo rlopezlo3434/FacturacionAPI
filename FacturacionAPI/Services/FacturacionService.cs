@@ -562,12 +562,16 @@ namespace FacturacionAPI.Services
         //        .ToListAsync();
         //}
 
-        public async Task<List<VentaEmpleado>> listVentaEmpleado(int establishmentId)
+        public async Task<List<VentaEmpleado>> listVentaEmpleado(int establishmentId, DateTime fecha)
         {
-            int year = DateTime.Today.Year;
-            int month = DateTime.Today.Month;  // noviembre
+            // Tomar año y mes de la fecha enviada
+            int year = fecha.Year;
+            int month = fecha.Month;
 
+            // Primer día del mes
             var inicioMes = new DateTime(year, month, 1);
+
+            // Primer día del mes siguiente
             var finMes = inicioMes.AddMonths(1);
 
             return await _context.ventaEmpleados
@@ -575,11 +579,29 @@ namespace FacturacionAPI.Services
                 .Include(v => v.productDefinition)
                 .Include(v => v.Venta)
                     .ThenInclude(v => v.Detalles)
-                .Where(v => v.FechaRegistro >= inicioMes &&
-                            v.FechaRegistro < finMes &&
-                            v.Venta.EstablishmentId == establishmentId &&
-                            v.Venta.IsAnnulled == false)
+                .Where(v =>
+                    v.FechaRegistro >= inicioMes &&
+                    v.FechaRegistro < finMes &&
+                    v.Venta.EstablishmentId == establishmentId &&
+                    v.Venta.IsAnnulled == false
+                )
                 .ToListAsync();
+            //int year = DateTime.Today.Year;
+            //int month = DateTime.Today.Month;  // noviembre
+
+            //var inicioMes = new DateTime(year, month, 1);
+            //var finMes = inicioMes.AddMonths(1);
+
+            //return await _context.ventaEmpleados
+            //    .Include(v => v.Empleado)
+            //    .Include(v => v.productDefinition)
+            //    .Include(v => v.Venta)
+            //        .ThenInclude(v => v.Detalles)
+            //    .Where(v => v.FechaRegistro >= inicioMes &&
+            //                v.FechaRegistro < finMes &&
+            //                v.Venta.EstablishmentId == establishmentId &&
+            //                v.Venta.IsAnnulled == false)
+            //    .ToListAsync();
         }
 
         public async Task<object> GetComprobantes(int establishmentId, DateTime fecha)
@@ -676,20 +698,20 @@ namespace FacturacionAPI.Services
         public async Task<List<ReporteDiarioDto>> GenerarReporteAcumulado(int establishmentId, DateTime fecha)
         {
 
-            var hoy = DateTime.Today;
 
-            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+            var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
+
             var inicioMesSiguiente = inicioMes.AddMonths(1);
 
             var ventas = await _context.Ventas
-                .Include(v => v.Detalles)
-                .Where(v =>
-                    v.EstablishmentId == establishmentId &&
-                    v.FechaEmision >= inicioMes &&
-                    v.FechaEmision < inicioMesSiguiente
-                )
-                .OrderBy(v => v.FechaEmision)
-                .ToListAsync();
+                            .Include(v => v.Detalles)
+                            .Where(v =>
+                                v.EstablishmentId == establishmentId &&
+                                v.FechaEmision >= inicioMes &&
+                                v.FechaEmision < inicioMesSiguiente
+                            )
+                            .OrderBy(v => v.FechaEmision)
+                            .ToListAsync();
 
             // Mapear a DTO
             var reporte = ventas.Select(v => new ReporteDiarioDto
@@ -725,18 +747,18 @@ namespace FacturacionAPI.Services
 
             var hoy = DateTime.Today;
 
-            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
-            var inicioMesSiguiente = inicioMes.AddMonths(1);
+            var inicioDia = fecha.Date;
+            var finDia = inicioDia.AddDays(1);
 
             var ventas = await _context.Ventas
-                .Include(v => v.Detalles)
-                .Where(v =>
-                    v.EstablishmentId == establishmentId &&
-                    v.FechaEmision >= inicioMes &&
-                    v.FechaEmision < inicioMesSiguiente
-                )
-                .OrderBy(v => v.FechaEmision)
-                .ToListAsync();
+                            .Include(v => v.Detalles)
+                            .Where(v =>
+                                v.EstablishmentId == establishmentId &&
+                                v.FechaEmision >= inicioDia &&
+                                v.FechaEmision < finDia
+                            )
+                            .OrderBy(v => v.FechaEmision)
+                            .ToListAsync();
 
             // Mapear a DTO
             var reporte = ventas.Select(v => new ReporteDiarioDto

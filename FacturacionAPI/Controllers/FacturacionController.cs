@@ -182,21 +182,21 @@ namespace FacturacionAPI.Controllers
 
 
         [HttpGet("reporte-productividad")]
-        public async Task<IActionResult> ReporteProductividad()
+        public async Task<IActionResult> ReporteProductividad(DateTime fechas)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            var data = await _facturacionService.listVentaEmpleado(establishmentId);
+            var data = await _facturacionService.listVentaEmpleado(establishmentId, fechas);
             var colorEmpleadoMap = new Dictionary<int, System.Drawing.Color>();
             // 🔹 Obtener empleados y productos ordenados por nombre
             var empleados = data.Select(x => x.Empleado).Distinct().OrderBy(e => e.FirstName).ToList();
             var productos = data.Select(x => x.productDefinition).Distinct().OrderBy(p => p.Description).ToList();
 
             // 🔹 Rango del mes
-            var hoy = DateTime.Today;
-            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+            //var hoy = DateTime.Today;
+            var inicioMes = new DateTime(fechas.Year, fechas.Month, 1);
             var finMes = inicioMes.AddMonths(1);
 
             //int year = DateTime.Today.Year;
@@ -720,5 +720,78 @@ namespace FacturacionAPI.Controllers
             return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombreArchivo);
         }
 
+
+        [HttpGet("reporte-diario3")]
+        public async Task<IActionResult> ReporteDiario3([FromQuery] DateTime fecha)
+        {
+            // Solo necesario si usas EPPlus <=7.2.2
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
+
+            var ventas = await _facturacionService.GenerarReporteDiario(establishmentId, fecha);
+
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Reporte Diario");
+
+            // Cabecera general
+            ws.Cells[1, 1].Value = "Documento";
+            ws.Cells[1, 2].Value = "Serie";
+            ws.Cells[1, 3].Value = "Numero";
+            ws.Cells[1, 4].Value = "Fecha Emisión";
+            ws.Cells[1, 5].Value = "Sunat Anulado";
+            ws.Cells[1, 6].Value = "Forma Pago";
+            ws.Cells[1, 7].Value = "Cliente";
+            ws.Cells[1, 8].Value = "Tipo";
+            ws.Cells[1, 9].Value = "Código";
+            ws.Cells[1, 10].Value = "Descripción";
+            ws.Cells[1, 11].Value = "Cantidad";
+            ws.Cells[1, 12].Value = "Valor Unit.";
+            ws.Cells[1, 13].Value = "Subtotal";
+            ws.Cells[1, 14].Value = "IGV";
+            ws.Cells[1, 15].Value = "Total";
+            ws.Cells[1, 16].Value = "Hora";
+
+            using (var range = ws.Cells[1, 1, 1, 14])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            int row = 2;
+
+            foreach (var venta in ventas)
+            {
+                foreach (var detalle in venta.Detalles)
+                {
+                    ws.Cells[row, 1].Value = $"{venta.TipoComprobante} {venta.Serie}-{venta.Numero}";
+                    ws.Cells[row, 2].Value = venta.Serie;
+                    ws.Cells[row, 3].Value = venta.Numero;
+                    ws.Cells[row, 4].Value = venta.FechaEmision.ToString("dd/MM/yyyy");
+                    ws.Cells[row, 5].Value = venta.EstadoSunat;
+                    ws.Cells[row, 6].Value = venta.MetodoPago;
+                    ws.Cells[row, 7].Value = venta.ClienteNombre;
+                    ws.Cells[row, 8].Value = "NIÑO";
+                    ws.Cells[row, 9].Value = detalle.Codigo;
+                    ws.Cells[row, 10].Value = detalle.Descripcion;
+                    ws.Cells[row, 11].Value = detalle.Cantidad;
+                    ws.Cells[row, 12].Value = detalle.ValorUnitario;
+                    ws.Cells[row, 13].Value = detalle.Subtotal;
+                    ws.Cells[row, 14].Value = detalle.Igv;
+                    ws.Cells[row, 15].Value = detalle.Total;
+                    ws.Cells[row, 16].Value = venta.FechaEmision.ToString("HH:mm");
+                    row++;
+                }
+            }
+
+            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+
+            var excelBytes = package.GetAsByteArray();
+            var nombreArchivo = $"ReporteDiario_{DateTime.Now:yyyyMMdd}.xlsx";
+
+            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombreArchivo);
+        }
     }
 }

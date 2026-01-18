@@ -3,6 +3,7 @@ using FacturacionAPI.Models.Entities;
 using FacturacionAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FacturacionAPI.Controllers
 {
@@ -194,6 +195,48 @@ namespace FacturacionAPI.Controllers
             return Ok(new
             {
                 descuentoAplicado = descuento
+            });
+        }
+
+
+        [HttpGet("{clienteId}/tarjeta")]
+        public async Task<TarjetaClienteResponse> ObtenerTarjetaCliente(int clienteId)
+        {
+
+            var response = await _clientService.GetVisitaCliente(clienteId);
+            // contar visitas reales
+
+            return response;
+           
+        }
+
+        [HttpPost("registrar-visita")]
+        public async Task<IActionResult> RegistrarVisita([FromBody] RegistrarVisitaRequest request)
+        {
+            if (request.ClienteId <= 0)
+                return BadRequest("ClienteId inválido");
+
+
+            var response = await _clientService.RegistrarVisitaCliente(request.ClienteId);
+        
+            return Ok(new
+            {
+                success = true,
+                message = "Visita registrada correctamente"
+            });
+        }
+
+        [HttpPost("reset-tarjeta")]
+        public async Task<IActionResult> ResetTarjeta([FromBody] ResetTarjetaRequest req)
+        {
+
+            var response = await _clientService.ResetTarjeta(req.ClienteId);
+            
+
+            return Ok(new
+            {
+                success = true,
+                message = "Tarjeta reseteada (nuevo ciclo)"
             });
         }
 
