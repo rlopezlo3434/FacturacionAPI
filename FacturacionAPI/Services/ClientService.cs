@@ -24,18 +24,39 @@ namespace FacturacionAPI.Services
                 .Select(e => new ClientDto
                 {
                     Id = e.Id,
-                    FirstName = e.FirstName,
-                    LastName = e.LastName,
+                    Names = e.Names,
                     DocumentIdentificationNumber = e.DocumentIdentificationNumber,
                     Email = e.Email,
-                    Gender = e.Gender.ToString(),
-                    DocumentIdentificationType = e.DocumentIdentificationType.ToString(),
+
+                    Gender = new CatalogItemDto
+                    {
+                        Id = (int)e.Gender,
+                        Name = e.Gender.ToString()
+                    },
+
+                    DocumentIdentificationType = new CatalogItemDto
+                    {
+                        Id = (int)e.DocumentIdentificationType,
+                        Name = e.DocumentIdentificationType.ToString()
+                    },
+
                     IsActive = e.IsActive,
                     AcceptsMarketing = e.AcceptsMarketing,
-                    Numbers = e.Numbers.Select(n => n.Number).ToList()
+
+                    Numbers = e.Numbers
+                        .OrderByDescending(c => c.IsPrimary)
+                        .Select(c => new ClientContactDto
+                        {
+                            Id = c.Id,
+                            Number = c.Number,
+                            ContactName = c.ContactName,
+                            Type = (int)c.Type,
+                            IsPrimary = c.IsPrimary
+                        }).ToList()
                 })
                 .ToListAsync();
         }
+
 
         public async Task<IEnumerable<object>> GetChildrenByClient(int establishmentId)
         {
@@ -51,12 +72,11 @@ namespace FacturacionAPI.Services
                     Client = new ClientDto
                     {
                         Id = e.Client.Id,
-                        FirstName = e.Client.FirstName,
-                        LastName = e.Client.LastName,
+                        Names = e.Client.Names,
                         DocumentIdentificationNumber = e.Client.DocumentIdentificationNumber,
                         Email = e.Client.Email,
-                        Gender = e.Client.Gender.ToString(),
-                        DocumentIdentificationType = e.Client.DocumentIdentificationType.ToString(),
+                        //Gender = e.Client.Gender.ToString(),
+                        //DocumentIdentificationType = e.Client.DocumentIdentificationType.ToString(),
                         IsActive = e.IsActive,
                     }
                 })
@@ -64,24 +84,21 @@ namespace FacturacionAPI.Services
         }
         public async Task<(bool Success, string Message)> UpdateClientAsync(int id, ClientCreateDto dto)
         {
-            var client = await _context.Client.FirstOrDefaultAsync(c => c.Id == id);
+            var client = await _context.Client
+                .Include(c => c.Numbers)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
             if (client == null)
-                return (false, "No se encontró el cliente en este establecimiento.");
+                return (false, "No se encontró el cliente.");
 
             if (!string.IsNullOrWhiteSpace(dto.DocumentIdentificationNumber))
                 client.DocumentIdentificationNumber = dto.DocumentIdentificationNumber;
 
-            if (!string.IsNullOrWhiteSpace(dto.FirstName))
-                client.FirstName = dto.FirstName;
+            if (!string.IsNullOrWhiteSpace(dto.Names))
+                client.Names = dto.Names;
 
-            if (!string.IsNullOrWhiteSpace(dto.LastName))
-                client.LastName = dto.LastName;
-
-            if (!string.IsNullOrWhiteSpace(dto.Email))
+            if (dto.Email != null) // permite limpiar correo si viene vacío
                 client.Email = dto.Email;
-
-            if (!string.IsNullOrWhiteSpace(dto.DocumentIdentificationNumber))
-                client.DocumentIdentificationNumber = dto.DocumentIdentificationNumber;
 
             if (dto.DocumentIdentificationType != null)
                 client.DocumentIdentificationType = dto.DocumentIdentificationType;
@@ -91,7 +108,35 @@ namespace FacturacionAPI.Services
 
             client.UpdatedAt = DateTime.Now;
 
-            _context.Client.Update(client);
+            if (dto.Numbers != null)
+            {
+                // Validar que no haya más de 1 principal
+                if (dto.Numbers.Count(x => x.IsPrimary) > 1)
+                    return (false, "Solo puede existir un número principal.");
+
+                // Si hay números y ninguno es principal, marcamos el primero
+                if (dto.Numbers.Count > 0 && !dto.Numbers.Any(x => x.IsPrimary))
+                    dto.Numbers[0].IsPrimary = true;
+
+                var oldNumbers = await _context.ClientNumbers
+                    .Where(x => x.ClientId == client.Id)
+                    .ToListAsync();
+
+                if (oldNumbers.Any())
+                    _context.ClientNumbers.RemoveRange(oldNumbers);
+
+                var newNumbers = dto.Numbers.Select(n => new ClientNumbers
+                {
+                    ClientId = client.Id,
+                    ContactName = n.ContactName,
+                    Type = (ContactTypeEnum)n.Type, 
+                    Number = n.Number,
+                    IsPrimary = n.IsPrimary
+                }).ToList();
+
+                await _context.ClientNumbers.AddRangeAsync(newNumbers);
+            }
+
             await _context.SaveChangesAsync();
 
             return (true, "Cliente actualizado correctamente.");
@@ -108,8 +153,7 @@ namespace FacturacionAPI.Services
 
             var client = new Client
             {
-                FirstName = dto.FirstName,
-                LastName = dto.LastName,
+                Names = dto.Names,
                 DocumentIdentificationType = dto.DocumentIdentificationType,
                 DocumentIdentificationNumber = dto.DocumentIdentificationNumber,
                 Email = dto.Email,
@@ -123,22 +167,26 @@ namespace FacturacionAPI.Services
             _context.Client.Add(client);
             await _context.SaveChangesAsync();
 
-            if (dto.Numbers != null)
-            {
-                var validNumbers = dto.Numbers
-                    .Where(n => !string.IsNullOrWhiteSpace(n))
-                    .Select(n => new ClientNumbers
-                    {
-                        ClientId = client.Id,
-                        Number = n.Trim()
-                    })
-                    .ToList();
 
-                if (validNumbers.Any())
+            if (dto.Numbers != null && dto.Numbers.Count > 0)
+            {
+                if (dto.Numbers.Count(x => x.IsPrimary) > 1)
+                    return (false, "Solo puede existir un número principal.");
+
+                if (!dto.Numbers.Any(x => x.IsPrimary))
+                    dto.Numbers[0].IsPrimary = true;
+
+                var numbers = dto.Numbers.Select(n => new ClientNumbers
                 {
-                    _context.ClientNumbers.AddRange(validNumbers);
-                    await _context.SaveChangesAsync();
-                }
+                    ClientId = client.Id,
+                    ContactName = n.ContactName,
+                    Type = (ContactTypeEnum)n.Type,
+                    Number = n.Number,
+                    IsPrimary = n.IsPrimary
+                }).ToList();
+
+                _context.ClientNumbers.AddRange(numbers);
+                await _context.SaveChangesAsync();
             }
 
             return (true, "Cliente creado correctamente.");
@@ -162,6 +210,47 @@ namespace FacturacionAPI.Services
             await _context.SaveChangesAsync();
 
             return (true, "Numero agregado correctamente.");
+        }
+
+        public async Task SaveClientNumbersAsync(int clientId, List<ClientContactCreateDto> numbers)
+        {
+            // 1) Borrar anteriores
+            var oldNumbers = await _context.ClientNumbers
+                .Where(x => x.ClientId == clientId)
+                .ToListAsync();
+
+            if (oldNumbers.Any())
+            {
+                _context.ClientNumbers.RemoveRange(oldNumbers);
+            }
+
+            // Si no enviaron números, guardamos vacío
+            if (numbers == null || numbers.Count == 0)
+            {
+                await _context.SaveChangesAsync();
+                return;
+            }
+
+            // 2) Validar Primary (solo uno)
+            if (numbers.Count(x => x.IsPrimary) > 1)
+                throw new Exception("Solo puede existir un número principal.");
+
+            // Si ninguno es primary, asignamos el primero
+            if (!numbers.Any(x => x.IsPrimary))
+                numbers[0].IsPrimary = true;
+
+            // 3) Insertar nuevos
+            var newNumbers = numbers.Select(n => new ClientNumbers
+            {
+                ClientId = clientId,
+                ContactName = n.ContactName,
+                Type = (ContactTypeEnum)n.Type,
+                Number = n.Number,
+                IsPrimary = n.IsPrimary
+            }).ToList();
+
+            await _context.ClientNumbers.AddRangeAsync(newNumbers);
+            await _context.SaveChangesAsync();
         }
 
         public async Task<(bool Success, string Message)> CreateChildrenClientAsync(ChildrenDto dto)

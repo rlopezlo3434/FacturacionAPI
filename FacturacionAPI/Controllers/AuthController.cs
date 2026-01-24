@@ -1,6 +1,7 @@
 ﻿using FacturacionAPI.Data;
 using FacturacionAPI.Models.DTOs;
 using FacturacionAPI.Models.Entities;
+using FacturacionAPI.Models.Enums;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -40,9 +41,9 @@ namespace FacturacionAPI.Controllers
                 });
 
             // 2. Generar token
-            var token = GenerateJwtToken(user);
+            var response = GenerateJwtToken(user);
 
-            return Ok(token);
+            return Ok(response);
         }
 
         private AuthResponseDto GenerateJwtToken(Employee user)
@@ -78,8 +79,7 @@ namespace FacturacionAPI.Controllers
                 User = new EmployeeDto
                 {
                     Id = user.Id,
-                    Name = user.FirstName,
-                    LastName = user.LastName,
+                    Names = user.Names,
                     Establishment = new EstablishmentDto
                     {
                         Id = user.Establishment.Id,
@@ -90,7 +90,12 @@ namespace FacturacionAPI.Controllers
                     Username = user.Username,
                     RoleName = user.Role.Name,
                     RoleCode = user.Role.Code,
-                    Gender = user.Gender.ToString() == "M" ? "Hombre" : "Mujer",
+                    Gender = user.Gender switch
+                    {
+                        GenderEnum.Male => "Hombre",
+                        GenderEnum.Female => "Mujer",
+                        _ => "No definido"
+                    },
                     IsActive = user.IsActive
                 }
             };

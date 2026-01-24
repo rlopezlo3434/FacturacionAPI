@@ -11,12 +11,31 @@ namespace FacturacionAPI.Data
         {
         }
 
+        public DbSet<InventoryMasterItem> InventoryMasterItems { get; set; }
+        public DbSet<VehicleIntake> VehicleIntakes { get; set; }
+        public DbSet<VehicleIntakeInventoryItem> VehicleIntakeInventoryItems { get; set; }
+        public DbSet<ServicesMaster> ServicesMasters { get; set; }
+        public DbSet<Product> Products { get; set; }
+        public DbSet<VehicleBudget> VehicleBudgets { get; set; }
+        public DbSet<VehicleBudgetItem> VehicleBudgetItems { get; set; }
+        public DbSet<WorkOrder> WorkOrders { get; set; }
+        public DbSet<WorkOrderItem> WorkOrderItems { get; set; }
+
+
+
         public DbSet<Companie> Companie { get; set; }
         public DbSet<Establishment> Establishment { get; set; }
         public DbSet<Role> Role { get; set; }
         public DbSet<Employee> Employee { get; set; }
         public DbSet<Client> Client { get; set; }
         public DbSet<ClientNumbers> ClientNumbers { get; set; }
+
+        public DbSet<VehicleBrand> VehicleBrands { get; set; }
+        public DbSet<VehicleModel> VehicleModels { get; set; }
+        public DbSet<Vehicle> Vehicles { get; set; }
+        public DbSet<VehicleOwner> VehicleOwners { get; set; }
+
+
         public DbSet<Item> Items { get; set; }
         public DbSet<Stock> Stock { get; set; }
         public DbSet<StockMovement> StockMovement { get; set; }
@@ -32,21 +51,28 @@ namespace FacturacionAPI.Data
         public DbSet<CajaCierre> CajaCierres { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<Companie>()
-               .Property(c => c.DocumentIdentificationType)
-               .HasConversion<string>();
+            modelBuilder.Entity<ClientNumbers>()
+                .HasIndex(x => new { x.ClientId, x.IsPrimary })
+                .IsUnique()
+                .HasFilter("[IsPrimary] = 1");
 
-            modelBuilder.Entity<Establishment>()
-               .Property(c => c.DocumentIdentificationType)
-               .HasConversion<string>();
+            modelBuilder.Entity<Vehicle>()
+                .HasOne(v => v.Brand)
+                .WithMany()
+                .HasForeignKey(v => v.BrandId)
+                .OnDelete(DeleteBehavior.Restrict); 
 
-            modelBuilder.Entity<Employee>()
-               .Property(c => c.Gender)
-               .HasConversion<string>();
+            modelBuilder.Entity<Vehicle>()
+                .HasOne(v => v.Model)
+                .WithMany()
+                .HasForeignKey(v => v.ModelId)
+                .OnDelete(DeleteBehavior.Restrict); 
 
-            modelBuilder.Entity<Employee>()
-               .Property(c => c.DocumentIdentificationType)
-               .HasConversion<string>();
+            modelBuilder.Entity<VehicleModel>()
+                .HasOne(m => m.Brand)
+                .WithMany(b => b.Models)
+                .HasForeignKey(m => m.BrandId)
+                .OnDelete(DeleteBehavior.Restrict); 
 
             modelBuilder.Entity<ProductDefinition>()
                 .Property(c => c.Item)
@@ -61,6 +87,18 @@ namespace FacturacionAPI.Data
                 .HasConversion<string>();
 
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<WorkOrder>()
+                .HasOne(x => x.VehicleIntake)
+                .WithMany()
+                .HasForeignKey(x => x.VehicleIntakeId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<WorkOrder>()
+                .HasOne(x => x.Budget)
+                .WithMany()
+                .HasForeignKey(x => x.BudgetId)
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

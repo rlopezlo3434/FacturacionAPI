@@ -4,6 +4,7 @@ using FacturacionAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    partial class SistemaVentasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260124050734_budgetFix")]
+    partial class budgetFix
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1146,82 +1148,6 @@ namespace FacturacionAPI.Migrations
                     b.ToTable("ventaEmpleados");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.WorkOrder", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<int>("BudgetId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Code")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("VehicleIntakeId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("BudgetId");
-
-                    b.HasIndex("VehicleIntakeId");
-
-                    b.ToTable("WorkOrders");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.WorkOrderItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<bool>("IsCompleted")
-                        .HasColumnType("bit");
-
-                    b.Property<int>("ItemType")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Observations")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ServiceMasterId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("WorkOrderId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("ServiceMasterId");
-
-                    b.HasIndex("WorkOrderId");
-
-                    b.ToTable("WorkOrderItems");
-                });
-
             modelBuilder.Entity("FacturacionAPI.Models.Entities.AnulacionDocumento", b =>
                 {
                     b.HasOne("FacturacionAPI.Models.Entities.Venta", "venta")
@@ -1564,48 +1490,6 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("productDefinition");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.WorkOrder", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.VehicleBudget", "Budget")
-                        .WithMany()
-                        .HasForeignKey("BudgetId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("FacturacionAPI.Models.Entities.VehicleIntake", "VehicleIntake")
-                        .WithMany()
-                        .HasForeignKey("VehicleIntakeId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Budget");
-
-                    b.Navigation("VehicleIntake");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.WorkOrderItem", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId");
-
-                    b.HasOne("FacturacionAPI.Models.Entities.ServicesMaster", "ServiceMaster")
-                        .WithMany()
-                        .HasForeignKey("ServiceMasterId");
-
-                    b.HasOne("FacturacionAPI.Models.Entities.WorkOrder", "WorkOrder")
-                        .WithMany("Items")
-                        .HasForeignKey("WorkOrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-
-                    b.Navigation("ServiceMaster");
-
-                    b.Navigation("WorkOrder");
-                });
-
             modelBuilder.Entity("FacturacionAPI.Models.Entities.CajaApertura", b =>
                 {
                     b.Navigation("Cierre")
@@ -1648,11 +1532,6 @@ namespace FacturacionAPI.Migrations
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Venta", b =>
                 {
                     b.Navigation("Detalles");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.WorkOrder", b =>
-                {
-                    b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
         }

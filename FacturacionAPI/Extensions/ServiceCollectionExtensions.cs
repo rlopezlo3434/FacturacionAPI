@@ -15,6 +15,13 @@ namespace FacturacionAPI.Extensions
             services.AddScoped<FacturacionService>();
             services.AddScoped<KardexService>();
             services.AddScoped<CajaService>();
+            services.AddScoped<VehicleCatalogService>();
+            services.AddScoped<VehicleService>();
+            services.AddScoped<VehicleIntakeService>();
+            services.AddScoped<ServicesMasterService>();
+            services.AddScoped<ProductService>();
+            services.AddScoped<VehicleBudgetService>();
+            services.AddScoped<WorkOrderService>();
 
             return services;
         }

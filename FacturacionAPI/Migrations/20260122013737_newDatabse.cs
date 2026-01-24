@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace FacturacionAPI.Migrations
 {
-    public partial class initial : Migration
+    public partial class newDatabse : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -15,7 +15,7 @@ namespace FacturacionAPI.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    DocumentIdentificationType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DocumentIdentificationType = table.Column<int>(type: "int", nullable: false),
                     DocumentIdentificationNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CommercialName = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
@@ -63,6 +63,20 @@ namespace FacturacionAPI.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "VehicleBrands",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Name = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_VehicleBrands", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Establishment",
                 columns: table => new
                 {
@@ -70,7 +84,7 @@ namespace FacturacionAPI.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Name = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     FullAddress = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    DocumentIdentificationType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DocumentIdentificationType = table.Column<int>(type: "int", nullable: false),
                     DocumentIdentificationNumber = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     urlNubefact = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     TokenNubefact = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -90,6 +104,27 @@ namespace FacturacionAPI.Migrations
                         principalTable: "Companie",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "VehicleModels",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    BrandId = table.Column<int>(type: "int", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(80)", maxLength: 80, nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_VehicleModels", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_VehicleModels_VehicleBrands_BrandId",
+                        column: x => x.BrandId,
+                        principalTable: "VehicleBrands",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -120,8 +155,7 @@ namespace FacturacionAPI.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    FirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    LastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Names = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     DocumentIdentificationType = table.Column<int>(type: "int", nullable: false),
                     DocumentIdentificationNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -149,12 +183,11 @@ namespace FacturacionAPI.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    FirstName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    LastName = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    DocumentIdentificationType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Names = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DocumentIdentificationType = table.Column<int>(type: "int", nullable: false),
                     DocumentIdentificationNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Email = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Gender = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Gender = table.Column<int>(type: "int", nullable: false),
                     EstablishmentId = table.Column<int>(type: "int", nullable: false),
                     Username = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
@@ -271,6 +304,37 @@ namespace FacturacionAPI.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Vehicles",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Plate = table.Column<string>(type: "nvarchar(15)", maxLength: 15, nullable: false),
+                    BrandId = table.Column<int>(type: "int", nullable: false),
+                    ModelId = table.Column<int>(type: "int", nullable: false),
+                    Year = table.Column<int>(type: "int", nullable: false),
+                    Color = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CurrentMileageKm = table.Column<int>(type: "int", nullable: true),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Vehicles", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Vehicles_VehicleBrands_BrandId",
+                        column: x => x.BrandId,
+                        principalTable: "VehicleBrands",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Vehicles_VehicleModels_ModelId",
+                        column: x => x.ModelId,
+                        principalTable: "VehicleModels",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "CajaCierres",
                 columns: table => new
                 {
@@ -325,7 +389,10 @@ namespace FacturacionAPI.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     ClientId = table.Column<int>(type: "int", nullable: false),
-                    Number = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    ContactName = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    Number = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    IsPrimary = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -500,6 +567,35 @@ namespace FacturacionAPI.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
+            migrationBuilder.CreateTable(
+                name: "VehicleOwners",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    VehicleId = table.Column<int>(type: "int", nullable: false),
+                    ClientId = table.Column<int>(type: "int", nullable: false),
+                    StartDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    IsCurrentOwner = table.Column<bool>(type: "bit", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_VehicleOwners", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_VehicleOwners_Client_ClientId",
+                        column: x => x.ClientId,
+                        principalTable: "Client",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_VehicleOwners_Vehicles_VehicleId",
+                        column: x => x.VehicleId,
+                        principalTable: "Vehicles",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AnulacionDocumento_VentaId",
                 table: "AnulacionDocumento",
@@ -537,9 +633,11 @@ namespace FacturacionAPI.Migrations
                 column: "EstablishmentId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_ClientNumbers_ClientId",
+                name: "IX_ClientNumbers_ClientId_IsPrimary",
                 table: "ClientNumbers",
-                column: "ClientId");
+                columns: new[] { "ClientId", "IsPrimary" },
+                unique: true,
+                filter: "[IsPrimary] = 1");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Employee_EstablishmentId",
@@ -581,6 +679,31 @@ namespace FacturacionAPI.Migrations
                 name: "IX_StockMovement_ItemId",
                 table: "StockMovement",
                 column: "ItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VehicleModels_BrandId",
+                table: "VehicleModels",
+                column: "BrandId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VehicleOwners_ClientId",
+                table: "VehicleOwners",
+                column: "ClientId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_VehicleOwners_VehicleId",
+                table: "VehicleOwners",
+                column: "VehicleId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vehicles_BrandId",
+                table: "Vehicles",
+                column: "BrandId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Vehicles_ModelId",
+                table: "Vehicles",
+                column: "ModelId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ventaDetalles_VentaId",
@@ -635,6 +758,9 @@ namespace FacturacionAPI.Migrations
                 name: "StockMovement");
 
             migrationBuilder.DropTable(
+                name: "VehicleOwners");
+
+            migrationBuilder.DropTable(
                 name: "ventaDetalles");
 
             migrationBuilder.DropTable(
@@ -644,10 +770,13 @@ namespace FacturacionAPI.Migrations
                 name: "CajaAperturas");
 
             migrationBuilder.DropTable(
+                name: "Items");
+
+            migrationBuilder.DropTable(
                 name: "Client");
 
             migrationBuilder.DropTable(
-                name: "Items");
+                name: "Vehicles");
 
             migrationBuilder.DropTable(
                 name: "Employee");
@@ -659,10 +788,16 @@ namespace FacturacionAPI.Migrations
                 name: "ProductDefinition");
 
             migrationBuilder.DropTable(
+                name: "VehicleModels");
+
+            migrationBuilder.DropTable(
                 name: "Role");
 
             migrationBuilder.DropTable(
                 name: "Establishment");
+
+            migrationBuilder.DropTable(
+                name: "VehicleBrands");
 
             migrationBuilder.DropTable(
                 name: "Companie");

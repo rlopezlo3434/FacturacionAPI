@@ -4,8 +4,7 @@ namespace FacturacionAPI.Models.DTOs
     public class EmployeeDto
     {
         public int Id { get; set; }
-        public string? Name { get; set; }
-        public string? LastName { get; set; }
+        public string? Names { get; set; }
         public string? DocumentIdentificationType { get; set; }
         public string? DocumentNumber { get; set; }
         public EstablishmentDto? Establishment { get; set; }

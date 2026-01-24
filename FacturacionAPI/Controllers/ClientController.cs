@@ -63,6 +63,29 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, message = result.Message });
         }
 
+        [HttpPost("{clientId}/numbers")]
+        public async Task<IActionResult> SaveNumbers(int clientId, [FromBody] List<ClientContactCreateDto> numbers)
+        {
+            try
+            {
+                await _clientService.SaveClientNumbersAsync(clientId, numbers);
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Números del cliente guardados correctamente"
+                });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+        }
+
         [Authorize]
         [HttpPost("children")]
         public async Task<IActionResult> CreateChildrenClient([FromBody] ChildrenDto dto)

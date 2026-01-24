@@ -4,9 +4,7 @@ namespace FacturacionAPI.Models.DTOs
 {
     public class UpdateEmployeeRequest
     {
-        public string? FirstName { get; set; }
-
-        public string? LastName { get; set; }
+        public string? Names { get; set; }
 
         public string? DocumentIdentificationType { get; set; }
 

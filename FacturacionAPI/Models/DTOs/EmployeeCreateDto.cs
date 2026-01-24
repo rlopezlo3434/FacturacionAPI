@@ -1,17 +1,15 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using FacturacionAPI.Models.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace FacturacionAPI.Models.DTOs
 {
     public class EmployeeCreateDto
     {
         [Required]
-        public string FirstName { get; set; }
+        public string Names { get; set; }
 
         [Required]
-        public string LastName { get; set; }
-
-        [Required]
-        public string DocumentIdentificationType { get; set; }
+        public DocumentIdentificationType DocumentIdentificationType { get; set; }
 
         [Required]
         public string DocumentIdentificationNumber { get; set; }

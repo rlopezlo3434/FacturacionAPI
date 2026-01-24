@@ -2,8 +2,8 @@
 {
     public enum DocumentIdentificationType
     {
-        RUC,
-        DNI,
-        CARNET_EXTRANJERIA
+        Ruc = 1,
+        Dni = 2,
+        CarnetExtranjeria = 3
     }
 }

@@ -49,7 +49,7 @@ namespace FacturacionAPI.Controllers
             //var token = "sk_11995.J1PfLkwiUFu24TB242NfB8y3sFWkaXCH";
             string url;
 
-            if (tipo == "RUC")
+            if (tipo == "Ruc")
             {
                 url = $"https://api.decolecta.com/v1/sunat/ruc?numero={numero}";
             }
@@ -181,229 +181,229 @@ namespace FacturacionAPI.Controllers
         }
 
 
-        [HttpGet("reporte-productividad")]
-        public async Task<IActionResult> ReporteProductividad()
-        {
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+        //[HttpGet("reporte-productividad")]
+        //public async Task<IActionResult> ReporteProductividad()
+        //{
+        //    ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
-            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+        //    var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            var data = await _facturacionService.listVentaEmpleado(establishmentId);
-            var colorEmpleadoMap = new Dictionary<int, System.Drawing.Color>();
-            // 🔹 Obtener empleados y productos ordenados por nombre
-            var empleados = data.Select(x => x.Empleado).Distinct().OrderBy(e => e.FirstName).ToList();
-            var productos = data.Select(x => x.productDefinition).Distinct().OrderBy(p => p.Description).ToList();
+        //    var data = await _facturacionService.listVentaEmpleado(establishmentId);
+        //    var colorEmpleadoMap = new Dictionary<int, System.Drawing.Color>();
+        //    // 🔹 Obtener empleados y productos ordenados por nombre
+        //    var empleados = data.Select(x => x.Empleado).Distinct().OrderBy(e => e.FirstName).ToList();
+        //    var productos = data.Select(x => x.productDefinition).Distinct().OrderBy(p => p.Description).ToList();
 
-            // 🔹 Rango del mes
-            var hoy = DateTime.Today;
-            var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
-            var finMes = inicioMes.AddMonths(1);
+        //    // 🔹 Rango del mes
+        //    var hoy = DateTime.Today;
+        //    var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
+        //    var finMes = inicioMes.AddMonths(1);
 
-            //int year = DateTime.Today.Year;
-            //int month = 11; // noviembre
+        //    //int year = DateTime.Today.Year;
+        //    //int month = 11; // noviembre
 
-            //var inicioMes = new DateTime(year, month, 1);
-            //var finMes = inicioMes.AddMonths(1);
+        //    //var inicioMes = new DateTime(year, month, 1);
+        //    //var finMes = inicioMes.AddMonths(1);
 
-            using var package = new ExcelPackage();
-            var ws = package.Workbook.Worksheets.Add("Productividad");
+        //    using var package = new ExcelPackage();
+        //    var ws = package.Workbook.Worksheets.Add("Productividad");
 
-            int row = 1;
-            int col = 1;
-            var colores = new List<System.Drawing.Color>
-                                {
-                                    System.Drawing.Color.LightPink,
-                                    System.Drawing.Color.LightGreen,
-                                    System.Drawing.Color.LightBlue,
-                                    System.Drawing.Color.LightSalmon,
-                                    System.Drawing.Color.LightYellow,
-                                    System.Drawing.Color.Plum,
-                                    System.Drawing.Color.Khaki,
-                                    System.Drawing.Color.PaleTurquoise,
-                                    System.Drawing.Color.MistyRose
-                                };
+        //    int row = 1;
+        //    int col = 1;
+        //    var colores = new List<System.Drawing.Color>
+        //                        {
+        //                            System.Drawing.Color.LightPink,
+        //                            System.Drawing.Color.LightGreen,
+        //                            System.Drawing.Color.LightBlue,
+        //                            System.Drawing.Color.LightSalmon,
+        //                            System.Drawing.Color.LightYellow,
+        //                            System.Drawing.Color.Plum,
+        //                            System.Drawing.Color.Khaki,
+        //                            System.Drawing.Color.PaleTurquoise,
+        //                            System.Drawing.Color.MistyRose
+        //                        };
 
-            int colorIndex = 0;
-            // -------------------------------------
-            //  ENCABEZADO DE FECHA
-            // -------------------------------------
-            ws.Cells[row, col].Value = "FECHA";
-            ws.Cells[row, col].Style.Font.Bold = true;
-            ws.Cells[row, col].Style.Fill.PatternType = ExcelFillStyle.Solid;
-            ws.Cells[row, col].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Yellow);
-            col++;
+        //    int colorIndex = 0;
+        //    // -------------------------------------
+        //    //  ENCABEZADO DE FECHA
+        //    // -------------------------------------
+        //    ws.Cells[row, col].Value = "FECHA";
+        //    ws.Cells[row, col].Style.Font.Bold = true;
+        //    ws.Cells[row, col].Style.Fill.PatternType = ExcelFillStyle.Solid;
+        //    ws.Cells[row, col].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Yellow);
+        //    col++;
 
-            // -------------------------------------
-            //  ENCABEZADOS POR EMPLEADO
-            // -------------------------------------
-            foreach (var emp in empleados)
-            {
-                int inicioColEmpleado = col;
-                int columnasPorEmpleado = productos.Count + 1; // +1 por MONTO
+        //    // -------------------------------------
+        //    //  ENCABEZADOS POR EMPLEADO
+        //    // -------------------------------------
+        //    foreach (var emp in empleados)
+        //    {
+        //        int inicioColEmpleado = col;
+        //        int columnasPorEmpleado = productos.Count + 1; // +1 por MONTO
 
-                // Obtiene color para este empleado
-                var colorEmpleado = colores[colorIndex % colores.Count];
-                colorIndex++;
-                colorEmpleadoMap[emp.Id] = colorEmpleado;
+        //        // Obtiene color para este empleado
+        //        var colorEmpleado = colores[colorIndex % colores.Count];
+        //        colorIndex++;
+        //        colorEmpleadoMap[emp.Id] = colorEmpleado;
 
-                // Mezclar celdas para el nombre
-                ws.Cells[row, col, row, col + columnasPorEmpleado - 1].Merge = true;
-                ws.Cells[row, col].Value = emp.FirstName.ToUpper();
-                ws.Cells[row, col].Style.Font.Bold = true;
-                ws.Cells[row, col].Style.Fill.PatternType = ExcelFillStyle.Solid;
-                // 🔹 Asignar color distinto para cada empleado
-                ws.Cells[row, col].Style.Fill.BackgroundColor.SetColor(colorEmpleado);
-                col += columnasPorEmpleado;
-            }
+        //        // Mezclar celdas para el nombre
+        //        ws.Cells[row, col, row, col + columnasPorEmpleado - 1].Merge = true;
+        //        ws.Cells[row, col].Value = emp.FirstName.ToUpper();
+        //        ws.Cells[row, col].Style.Font.Bold = true;
+        //        ws.Cells[row, col].Style.Fill.PatternType = ExcelFillStyle.Solid;
+        //        // 🔹 Asignar color distinto para cada empleado
+        //        ws.Cells[row, col].Style.Fill.BackgroundColor.SetColor(colorEmpleado);
+        //        col += columnasPorEmpleado;
+        //    }
 
-            row++;
+        //    row++;
 
-            // -------------------------------------
-            // SUBENCABEZADOS
-            // -------------------------------------
-            col = 2;
+        //    // -------------------------------------
+        //    // SUBENCABEZADOS
+        //    // -------------------------------------
+        //    col = 2;
 
-            foreach (var emp in empleados)
-            {
-                foreach (var p in productos)
-                {
-                    ws.Cells[row, col].Value = p.Description;
-                    ws.Cells[row, col].Style.Font.Bold = true;
-                    ws.Cells[row, col].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                    // 🔹 Ahora asignamos el mismo color del empleado
-                    ws.Cells[row, col].Style.Fill.BackgroundColor.SetColor(colorEmpleadoMap[emp.Id]);
+        //    foreach (var emp in empleados)
+        //    {
+        //        foreach (var p in productos)
+        //        {
+        //            ws.Cells[row, col].Value = p.Description;
+        //            ws.Cells[row, col].Style.Font.Bold = true;
+        //            ws.Cells[row, col].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+        //            // 🔹 Ahora asignamos el mismo color del empleado
+        //            ws.Cells[row, col].Style.Fill.BackgroundColor.SetColor(colorEmpleadoMap[emp.Id]);
 
-                    // 🔹 Rotar texto hacia arriba
-                    ws.Cells[row, col].Style.TextRotation = 90;
+        //            // 🔹 Rotar texto hacia arriba
+        //            ws.Cells[row, col].Style.TextRotation = 90;
 
-                    ws.Column(col).Width = 1; // Para que la columna no sea demasiado ancha
-                    col++;
-                }
+        //            ws.Column(col).Width = 1; // Para que la columna no sea demasiado ancha
+        //            col++;
+        //        }
 
-                ws.Cells[row, col].Value = "MONTO";
-                ws.Cells[row, col].Style.Font.Bold = true;
-                ws.Cells[row, col].Style.TextRotation = 90;
+        //        ws.Cells[row, col].Value = "MONTO";
+        //        ws.Cells[row, col].Style.Font.Bold = true;
+        //        ws.Cells[row, col].Style.TextRotation = 90;
 
-                ws.Column(col).Width = 1;
-                col++;
-            }
+        //        ws.Column(col).Width = 1;
+        //        col++;
+        //    }
 
-            row++;
+        //    row++;
 
-            // -------------------------------------
-            //  CUERPO: Filas por DÍA DEL MES
-            // -------------------------------------
-            for (var fecha = inicioMes; fecha < finMes; fecha = fecha.AddDays(1))
-            {
-                col = 1;
-                ws.Cells[row, col].Value = fecha.ToString("dd/MM/yyyy");
-                col++;
+        //    // -------------------------------------
+        //    //  CUERPO: Filas por DÍA DEL MES
+        //    // -------------------------------------
+        //    for (var fecha = inicioMes; fecha < finMes; fecha = fecha.AddDays(1))
+        //    {
+        //        col = 1;
+        //        ws.Cells[row, col].Value = fecha.ToString("dd/MM/yyyy");
+        //        col++;
 
-                foreach (var emp in empleados)
-                {
-                    decimal sumaa = 0;
+        //        foreach (var emp in empleados)
+        //        {
+        //            decimal sumaa = 0;
 
-                    foreach (var p in productos)
-                    {
-                        // Todos los registros del empleado, producto y día
-                        var registros = data
-                            .Where(x =>
-                                x.EmpleadoId == emp.Id &&
-                                x.ProductDefinitionId == p.Id &&
-                                x.FechaRegistro.Date == fecha.Date
-                            )
-                            .ToList();
+        //            foreach (var p in productos)
+        //            {
+        //                // Todos los registros del empleado, producto y día
+        //                var registros = data
+        //                    .Where(x =>
+        //                        x.EmpleadoId == emp.Id &&
+        //                        x.ProductDefinitionId == p.Id &&
+        //                        x.FechaRegistro.Date == fecha.Date
+        //                    )
+        //                    .ToList();
 
-                        // CANTIDAD
-                        int cantidad = registros.Count;
-                        ws.Cells[row, col].Value = cantidad == 0 ? "" : cantidad;
-                        col++;
+        //                // CANTIDAD
+        //                int cantidad = registros.Count;
+        //                ws.Cells[row, col].Value = cantidad == 0 ? "" : cantidad;
+        //                col++;
 
-                        // MONTO POR PRODUCTO (sumando los detalles correctos)
-                        decimal montoProducto = registros
-                            .SelectMany(x => x.Venta.Detalles)                   // acceder a detalles
-                            .Where(d => d.Codigo == p.Code)           // detalle de este producto
-                            .Sum(d => d.PrecioUnitario);                               // subtotales correctos
+        //                // MONTO POR PRODUCTO (sumando los detalles correctos)
+        //                decimal montoProducto = registros
+        //                    .SelectMany(x => x.Venta.Detalles)                   // acceder a detalles
+        //                    .Where(d => d.Codigo == p.Code)           // detalle de este producto
+        //                    .Sum(d => d.PrecioUnitario);                               // subtotales correctos
 
-                        sumaa += montoProducto;   // acumulamos
-                    }
+        //                sumaa += montoProducto;   // acumulamos
+        //            }
 
-                    ws.Cells[row, col].Value = sumaa == 0 ? "" : sumaa;
-                    col++;
-                }
+        //            ws.Cells[row, col].Value = sumaa == 0 ? "" : sumaa;
+        //            col++;
+        //        }
 
-                row++;
-            }
+        //        row++;
+        //    }
 
-            // -------------------------------------
-            //  FILA DE TOTALES DEL MES
-            // -------------------------------------
-            ws.Cells[row, 1].Value = "TOTAL MES";
-            ws.Cells[row, 1].Style.Font.Bold = true;
-            ws.Cells[row, 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
-            ws.Cells[row, 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Yellow);
+        //    // -------------------------------------
+        //    //  FILA DE TOTALES DEL MES
+        //    // -------------------------------------
+        //    ws.Cells[row, 1].Value = "TOTAL MES";
+        //    ws.Cells[row, 1].Style.Font.Bold = true;
+        //    ws.Cells[row, 1].Style.Fill.PatternType = ExcelFillStyle.Solid;
+        //    ws.Cells[row, 1].Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.Yellow);
 
-            int colTotal = 2;
+        //    int colTotal = 2;
 
-            foreach (var emp in empleados)
-            {
-                decimal sum = 0;
-                foreach (var p in productos)
-                {
-                    int totalProductoMes = data.Count(x =>
-                        x.EmpleadoId == emp.Id &&
-                        x.ProductDefinitionId == p.Id &&
-                        x.FechaRegistro >= inicioMes &&
-                        x.FechaRegistro < finMes
-                    );
+        //    foreach (var emp in empleados)
+        //    {
+        //        decimal sum = 0;
+        //        foreach (var p in productos)
+        //        {
+        //            int totalProductoMes = data.Count(x =>
+        //                x.EmpleadoId == emp.Id &&
+        //                x.ProductDefinitionId == p.Id &&
+        //                x.FechaRegistro >= inicioMes &&
+        //                x.FechaRegistro < finMes
+        //            );
 
-                    var registros = data.Where(x =>
-                        x.EmpleadoId == emp.Id &&
-                        x.ProductDefinitionId == p.Id &&
-                        x.FechaRegistro >= inicioMes &&
-                        x.FechaRegistro < finMes
-                    ).ToList();
+        //            var registros = data.Where(x =>
+        //                x.EmpleadoId == emp.Id &&
+        //                x.ProductDefinitionId == p.Id &&
+        //                x.FechaRegistro >= inicioMes &&
+        //                x.FechaRegistro < finMes
+        //            ).ToList();
 
-                    ws.Cells[row, colTotal].Value = totalProductoMes == 0 ? "" : totalProductoMes;
-                    ws.Cells[row, colTotal].Style.Font.Bold = true;
-                    colTotal++;
+        //            ws.Cells[row, colTotal].Value = totalProductoMes == 0 ? "" : totalProductoMes;
+        //            ws.Cells[row, colTotal].Style.Font.Bold = true;
+        //            colTotal++;
 
-                    decimal montoEmpleadoMes2 = registros
-                            .SelectMany(x => x.Venta.Detalles)                   // acceder a detalles
-                            .Where(d => d.Codigo == p.Code)           // detalle de este producto
-                            .Sum(d => d.PrecioUnitario);
+        //            decimal montoEmpleadoMes2 = registros
+        //                    .SelectMany(x => x.Venta.Detalles)                   // acceder a detalles
+        //                    .Where(d => d.Codigo == p.Code)           // detalle de este producto
+        //                    .Sum(d => d.PrecioUnitario);
 
-                    sum += montoEmpleadoMes2;   // acumulamos
+        //            sum += montoEmpleadoMes2;   // acumulamos
 
-                }
-
-
+        //        }
 
 
-                //// Total monto del empleado en el mes
-                //decimal montoEmpleadoMes = data
-                //    .Where(x => x.EmpleadoId == emp.Id &&
-                //                x.FechaRegistro >= inicioMes &&
-                //                x.FechaRegistro < finMes)
-                //    .SelectMany(x => x.Venta.Detalles)
-                //    .Where(d => d != null)
-                //    .Sum(d => d.PrecioUnitario);
 
-                ws.Cells[row, colTotal].Value = sum == 0 ? "" : sum;
-                ws.Cells[row, colTotal].Style.Font.Bold = true;
-                colTotal++;
-            }
 
-            // Ajuste de columnas
-            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+        //        //// Total monto del empleado en el mes
+        //        //decimal montoEmpleadoMes = data
+        //        //    .Where(x => x.EmpleadoId == emp.Id &&
+        //        //                x.FechaRegistro >= inicioMes &&
+        //        //                x.FechaRegistro < finMes)
+        //        //    .SelectMany(x => x.Venta.Detalles)
+        //        //    .Where(d => d != null)
+        //        //    .Sum(d => d.PrecioUnitario);
 
-            var bytes = package.GetAsByteArray();
-            var fileName = $"Productividad_{DateTime.Now:yyyyMMdd}.xlsx";
+        //        ws.Cells[row, colTotal].Value = sum == 0 ? "" : sum;
+        //        ws.Cells[row, colTotal].Style.Font.Bold = true;
+        //        colTotal++;
+        //    }
 
-            return File(bytes,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                fileName);
-        }
+        //    // Ajuste de columnas
+        //    ws.Cells[ws.Dimension.Address].AutoFitColumns();
+
+        //    var bytes = package.GetAsByteArray();
+        //    var fileName = $"Productividad_{DateTime.Now:yyyyMMdd}.xlsx";
+
+        //    return File(bytes,
+        //        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        //        fileName);
+        //}
 
 
         [Authorize]

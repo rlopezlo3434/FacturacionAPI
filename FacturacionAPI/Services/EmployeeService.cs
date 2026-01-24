@@ -23,8 +23,7 @@ namespace FacturacionAPI.Services
                 .Select(e => new EmployeeDto
                 {
                     Id = e.Id,
-                    Name = e.FirstName,
-                    LastName = e.LastName,
+                    Names = e.Names,
                     DocumentNumber = e.DocumentIdentificationNumber,
                     Email = e.Email,
                     Username = e.Username,
@@ -60,11 +59,8 @@ namespace FacturacionAPI.Services
             if (employee == null)
                 return (false, "Empleado no encontrado");
 
-            if (!string.IsNullOrEmpty(emp.FirstName))
-                employee.FirstName = emp.FirstName;
-
-            if (!string.IsNullOrEmpty(emp.LastName))
-                employee.LastName = emp.LastName;
+            if (!string.IsNullOrEmpty(emp.Names))
+                employee.Names = emp.Names;
 
             if (!string.IsNullOrEmpty(emp.DocumentIdentificationNumber))
                 employee.DocumentIdentificationNumber = emp.DocumentIdentificationNumber;
@@ -137,9 +133,8 @@ namespace FacturacionAPI.Services
             // 4. Crear el nuevo empleado
             var employee = new Employee
             {
-                FirstName = dto.FirstName,
-                LastName = dto.LastName,
-                DocumentIdentificationType = Enum.Parse<DocumentIdentificationType>(dto.DocumentIdentificationType),
+                Names = dto.Names,
+                DocumentIdentificationType = dto.DocumentIdentificationType,
                 DocumentIdentificationNumber = dto.DocumentIdentificationNumber,
                 Email = dto.Email,
                 EstablishmentId = establishmentId,
@@ -153,7 +148,7 @@ namespace FacturacionAPI.Services
             _context.Employee.Add(employee);
             await _context.SaveChangesAsync();
 
-            return (true,$"Empleado {employee.FirstName} {employee.LastName} creado con rol {newRole.Name}.");
+            return (true,$"Empleado {employee.Names} creado con rol {newRole.Name}.");
         }
 
         //public async Task<string> CreateClient(ClientCreateDto dto, int establishmentId)
