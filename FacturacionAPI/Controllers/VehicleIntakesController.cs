@@ -43,5 +43,16 @@ namespace FacturacionAPI.Controllers
            
             return Ok(new { success = true, data });
         }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetDetail(int id)
+        {
+            var intake = await _service.GetIntakeDetailAsync(id);
+
+            if (intake == null)
+                return NotFound(new { success = false, message = "Internamiento no encontrado." });
+
+            return Ok(new { success = true, data = intake });
+        }
     }
 }

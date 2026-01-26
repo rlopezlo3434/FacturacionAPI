@@ -119,5 +119,64 @@ namespace FacturacionAPI.Services
 
             return (true, "Internamiento registrado correctamente.");
         }
+
+        public async Task<VehicleIntakeDetailDto?> GetIntakeDetailAsync(int id)
+        {
+            var intake = await _context.VehicleIntakes
+                .Include(x => x.Vehicle).ThenInclude(v => v.Brand)
+                .Include(x => x.Vehicle).ThenInclude(v => v.Model)
+                .Include(x => x.Client)
+                .Include(x => x.InventoryItems)
+                    .ThenInclude(d => d.InventoryMasterItem)
+                .FirstOrDefaultAsync(x => x.Id == id);
+
+            if (intake == null) return null;
+
+            return new VehicleIntakeDetailDto
+            {
+                Id = intake.Id,
+                Mode = (int)intake.Mode,
+                PickupAddress = intake.PickupAddress,
+                MileageKm = intake.MileageKm,
+                Observations = intake.Observations,
+                CreatedAt = intake.CreatedAt,
+
+                Vehicle = new VehicleMiniDto2
+                {
+                    Id = intake.Vehicle.Id,
+                    Plate = intake.Vehicle.Plate,
+                    Brand = new CatalogMiniDto2
+                    {
+                        Id = intake.Vehicle.Brand.Id,
+                        Name = intake.Vehicle.Brand.Name
+                    },
+                    Model = new CatalogMiniDto2
+                    {
+                        Id = intake.Vehicle.Model.Id,
+                        Name = intake.Vehicle.Model.Name
+                    }
+                },
+
+                Client = new ClientMiniDto2
+                {
+                    Id = intake.Client.Id,
+                    Names = intake.Client.Names
+                },
+
+                InventoryItems = intake.InventoryItems
+                    .OrderBy(x => x.InventoryMasterItem.Group)
+                    .ThenBy(x => x.InventoryMasterItem.Name)
+                    .Select(x => new VehicleIntakeInventoryDetailDto
+                    {
+                        Id = x.Id,
+                        InventoryMasterItemId = x.InventoryMasterItemId,
+                        Name = x.InventoryMasterItem.Name,
+                        Group = (int)x.InventoryMasterItem.Group,
+                        GroupName = x.InventoryMasterItem.Group.ToString(),
+                        IsPresent = x.IsPresent
+                    })
+                    .ToList()
+            };
+        }
     }
 }

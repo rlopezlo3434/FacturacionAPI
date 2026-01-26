@@ -26,4 +26,50 @@
         public int Id { get; set; }
         public string Names { get; set; } = null!;
     }
+
+    public class VehicleIntakeDetailDto
+    {
+        public int Id { get; set; }
+        public int Mode { get; set; }
+        public string? PickupAddress { get; set; }
+        public int MileageKm { get; set; }
+        public string? Observations { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        public VehicleMiniDto2 Vehicle { get; set; } = null!;
+        public ClientMiniDto2 Client { get; set; } = null!;
+
+        public List<VehicleIntakeInventoryDetailDto> InventoryItems { get; set; } = new();
+    }
+
+    public class VehicleIntakeInventoryDetailDto
+    {
+        public int Id { get; set; }
+        public int InventoryMasterItemId { get; set; }
+        public string Name { get; set; } = null!;
+        public int Group { get; set; }
+        public string GroupName { get; set; } = null!;
+        public bool IsPresent { get; set; }
+    }
+
+    public class VehicleMiniDto2
+    {
+        public int Id { get; set; }
+        public string Plate { get; set; } = null!;
+        public CatalogMiniDto2 Brand { get; set; } = null!;
+        public CatalogMiniDto2 Model { get; set; } = null!;
+    }
+
+    public class ClientMiniDto2
+    {
+        public int Id { get; set; }
+        public string Names { get; set; } = null!;
+    }
+
+    public class CatalogMiniDto2
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = null!;
+    }
+
 }
