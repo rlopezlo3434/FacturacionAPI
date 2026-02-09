@@ -299,15 +299,19 @@ namespace FacturacionAPI.Services
                             itemEntity.Stock = new Stock { Quantity = 0 };
                         }
 
-                        // Crear movimiento de salida
-                        var movimiento = new StockMovement
-                        {
-                            ItemId = itemEntity.Id,
-                            MovementType = MovementType.Salida,
-                            Quantity = i.cantidad,
-                            Notes = $"Venta {venta.Serie}-{venta.Numero}"
-                        };
-                        _context.StockMovement.Add(movimiento);
+                        //if (venta.MetodoPago == MetodoPago.Efectivo)
+                        //{
+                            // Crear movimiento de salida
+                            var movimiento = new StockMovement
+                            {
+                                ItemId = itemEntity.Id,
+                                MovementType = MovementType.Salida,
+                                Quantity = i.cantidad,
+                                Notes = $"Venta {venta.Serie}-{venta.Numero}"
+                            };
+                            _context.StockMovement.Add(movimiento);
+                        //}
+                           
 
                         // Actualizar stock actual
                         itemEntity.Stock.Quantity -= i.cantidad;
@@ -713,30 +717,57 @@ namespace FacturacionAPI.Services
                             .OrderBy(v => v.FechaEmision)
                             .ToListAsync();
 
+            var ventaIds = ventas.Select(v => v.Id).ToList();
+
+            var ventaEmpleados = await _context.ventaEmpleados
+                .Include(v => v.Empleado)
+     .Where(ve => ventaIds.Contains(ve.VentaId))
+     .AsNoTracking()
+     .ToListAsync();   // 🔴 AQUÍ se corta EF
+
+            var ventaEmpleadoMap = ventaEmpleados
+    .GroupBy(ve => ve.VentaId)
+    .ToDictionary(
+        g => g.Key,
+        g => string.Join(", ",
+            g.Select(x => x.Empleado.FirstName + " " + x.Empleado.LastName)
+             .Distinct()
+        )
+    );
+
             // Mapear a DTO
-            var reporte = ventas.Select(v => new ReporteDiarioDto
+            var reporte = ventas.Select(v =>
             {
-                Id = v.Id,
-                TipoComprobante = v.TipoComprobante,
-                Serie = v.Serie,
-                Numero = v.Numero,
-                ClienteDocumento = v.ClienteDocumento,
-                ClienteNombre = v.ClienteNombre,
-                FechaEmision = v.FechaEmision,
-                Observaciones = v.Observaciones,
-                EstadoSunat = v.IsAnnulled ? "SI" : "NO",
-                MetodoPago = v.MetodoPago.ToString(),
-                Detalles = v.Detalles.Select(d => new ReporteDetalleDto
+                ventaEmpleadoMap.TryGetValue(v.Id, out var lista);
+
+                return new ReporteDiarioDto
                 {
-                    Codigo = d.Codigo,
-                    Descripcion = d.Descripcion,
-                    Cantidad = d.Cantidad,
-                    ValorUnitario = d.ValorUnitario,
-                    PrecioUnitario = d.PrecioUnitario,
-                    Subtotal = d.Subtotal,
-                    Igv = d.Igv,
-                    Total = d.Total
-                }).ToList()
+                    Id = v.Id,
+                    TipoComprobante = v.TipoComprobante,
+                    Serie = v.Serie,
+                    Numero = v.Numero,
+                    ClienteDocumento = v.ClienteDocumento,
+                    ClienteNombre = v.ClienteNombre,
+                    FechaEmision = v.FechaEmision,
+                    Observaciones = v.Observaciones,
+                    EstadoSunat = v.IsAnnulled ? "SI" : "NO",
+                    MetodoPago = v.MetodoPago.ToString(),
+
+                    // ✅ EMPLEADOS
+                    Empleados = lista != null ? string.Join(", ", lista) : "SIN EMPLEADO",
+
+                    Detalles = v.Detalles.Select(d => new ReporteDetalleDto
+                    {
+                        Codigo = d.Codigo,
+                        Descripcion = d.Descripcion,
+                        Cantidad = d.Cantidad,
+                        ValorUnitario = d.ValorUnitario,
+                        PrecioUnitario = d.PrecioUnitario,
+                        Subtotal = v.IsAnnulled ? 0m : d.Subtotal,
+                        Igv = v.IsAnnulled ? 0m : d.Igv,
+                        Total = v.IsAnnulled ? 0m : d.Total
+                    }).ToList()
+                };
             }).ToList();
 
             return reporte;
@@ -759,31 +790,57 @@ namespace FacturacionAPI.Services
                             )
                             .OrderBy(v => v.FechaEmision)
                             .ToListAsync();
+            var ventaIds = ventas.Select(v => v.Id).ToList();
+
+            var ventaEmpleados = await _context.ventaEmpleados
+                .Include(v => v.Empleado)
+     .Where(ve => ventaIds.Contains(ve.VentaId))
+     .AsNoTracking()
+     .ToListAsync();   // 🔴 AQUÍ se corta EF
+
+            var ventaEmpleadoMap = ventaEmpleados
+    .GroupBy(ve => ve.VentaId)
+    .ToDictionary(
+        g => g.Key,
+        g => string.Join(", ",
+            g.Select(x => x.Empleado.FirstName + " " + x.Empleado.LastName)
+             .Distinct()
+        )
+    );
 
             // Mapear a DTO
-            var reporte = ventas.Select(v => new ReporteDiarioDto
+            var reporte = ventas.Select(v =>
             {
-                Id = v.Id,
-                TipoComprobante = v.TipoComprobante,
-                Serie = v.Serie,
-                Numero = v.Numero,
-                ClienteDocumento = v.ClienteDocumento,
-                ClienteNombre = v.ClienteNombre,
-                FechaEmision = v.FechaEmision,
-                Observaciones = v.Observaciones,
-                EstadoSunat = v.IsAnnulled ? "SI" : "NO",
-                MetodoPago = v.MetodoPago.ToString(),
-                Detalles = v.Detalles.Select(d => new ReporteDetalleDto
+                ventaEmpleadoMap.TryGetValue(v.Id, out var lista);
+
+                return new ReporteDiarioDto
                 {
-                    Codigo = d.Codigo,
-                    Descripcion = d.Descripcion,
-                    Cantidad = d.Cantidad,
-                    ValorUnitario = d.ValorUnitario,
-                    PrecioUnitario = d.PrecioUnitario,
-                    Subtotal = d.Subtotal,
-                    Igv = d.Igv,
-                    Total = d.Total
-                }).ToList()
+                    Id = v.Id,
+                    TipoComprobante = v.TipoComprobante,
+                    Serie = v.Serie,
+                    Numero = v.Numero,
+                    ClienteDocumento = v.ClienteDocumento,
+                    ClienteNombre = v.ClienteNombre,
+                    FechaEmision = v.FechaEmision,
+                    Observaciones = v.Observaciones,
+                    EstadoSunat = v.IsAnnulled ? "SI" : "NO",
+                    MetodoPago = v.MetodoPago.ToString(),
+
+                    // ✅ EMPLEADOS
+                    Empleados = lista != null ? string.Join(", ", lista) : "SIN EMPLEADO",
+
+                    Detalles = v.Detalles.Select(d => new ReporteDetalleDto
+                    {
+                        Codigo = d.Codigo,
+                        Descripcion = d.Descripcion,
+                        Cantidad = d.Cantidad,
+                        ValorUnitario = d.ValorUnitario,
+                        PrecioUnitario = d.PrecioUnitario,
+                        Subtotal = v.IsAnnulled ? 0m : d.Subtotal,
+                        Igv = v.IsAnnulled ? 0m : d.Igv,
+                        Total = v.IsAnnulled ? 0m : d.Total
+                    }).ToList()
+                };
             }).ToList();
 
             return reporte;

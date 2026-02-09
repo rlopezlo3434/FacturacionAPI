@@ -12,6 +12,9 @@
         public string? Observaciones { get; set; }
         public string? MetodoPago { get; set; }
         public string EstadoSunat { get; set; }
+        public List<string> EmpleadoLista { get; set; }
+        public string Empleados { get; set; }
+
         public List<ReporteDetalleDto> Detalles { get; set; } = new List<ReporteDetalleDto>();
     }
 

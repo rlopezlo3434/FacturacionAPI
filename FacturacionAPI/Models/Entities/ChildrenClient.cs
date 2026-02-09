@@ -17,5 +17,7 @@ namespace FacturacionAPI.Models.Entities
         public int ClientId { get; set; }
         public Client Client { get; set; }
         public bool IsActive { get; set; } = true;
+
+        public string? Genero { get; set; }   
     }
 }

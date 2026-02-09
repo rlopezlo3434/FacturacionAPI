@@ -10,5 +10,6 @@ namespace FacturacionAPI.Models.DTOs
         public DateTime? FechaCumpleanios { get; set; }
         public int ClientId { get; set; }
         public bool IsActive { get; set; } = true;
+        public string Genero { get; set; }
     }
 }

@@ -69,42 +69,34 @@ namespace FacturacionAPI.Services
             }; 
         }
 
-        // ------------------------------------------------
-        // 3. REGISTRAR MOVIMIENTO AUTOMÁTICO POR VENTA
-        // ------------------------------------------------
-        public async Task<object> RegistrarMovimientoPorVenta(int ventaId)
+        public async Task<object?> RegistrarMovimientoPorVenta(int ventaId)
         {
-            var venta = await _context.Ventas.FirstOrDefaultAsync(v => v.Id == ventaId);
+            var venta = await _context.Ventas
+                .FirstOrDefaultAsync(v => v.Id == ventaId);
 
             if (venta == null)
                 throw new Exception("Venta no encontrada.");
 
+            // 🚫 SOLO EFECTIVO genera movimiento de caja
+            if (venta.MetodoPago != MetodoPago.Efectivo)
+                return null;
+
             var caja = await _context.CajaAperturas
-                .FirstOrDefaultAsync(c => c.EstablishmentId == venta.EstablishmentId && !c.Cerrada);
+                .FirstOrDefaultAsync(c =>
+                    c.EstablishmentId == venta.EstablishmentId &&
+                    !c.Cerrada);
 
             if (caja == null)
                 throw new Exception("No hay caja abierta en este establecimiento.");
 
-            // -----------------------------
-            // CLASIFICAR MOVIMIENTO
-            // -----------------------------
-            string tipoMovimiento = venta.MetodoPago switch
-            {
-                MetodoPago.Efectivo => "INGRESO",
-                MetodoPago.Yape => "EGRESO",
-                MetodoPago.Plin => "EGRESO",
-                MetodoPago.Tarjeta => "EGRESO",
-                MetodoPago.Transferencia => "EGRESO",
-                _ => "EGRESO"
-            };
-
             var movimiento = new CajaMovimiento
             {
                 CajaAperturaId = caja.Id,
-                VentaId = ventaId,
+                VentaId = venta.Id,
                 Monto = venta.Total,
-                Tipo = tipoMovimiento,
-                Motivo = $"Venta {venta.Serie}-{venta.Numero}"
+                Tipo = "INGRESO",
+                Motivo = $"Venta {venta.Serie}-{venta.Numero}",
+                FechaRegistro = DateTime.Now
             };
 
             _context.CajaMovimientos.Add(movimiento);

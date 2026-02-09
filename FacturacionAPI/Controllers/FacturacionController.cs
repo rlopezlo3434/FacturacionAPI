@@ -657,113 +657,48 @@ namespace FacturacionAPI.Controllers
 
 
             var ventas = await _facturacionService.GenerarReporteAcumulado(establishmentId, fecha);
-
             using var package = new ExcelPackage();
-            var ws = package.Workbook.Worksheets.Add("Reporte Diario");
-
-            // Cabecera general
+            var ws = package.Workbook.Worksheets.Add("Reporte Mensual");
+            // =====================
+            // CABECERAS
+            // =====================
             ws.Cells[1, 1].Value = "Documento";
             ws.Cells[1, 2].Value = "Serie";
-            ws.Cells[1, 3].Value = "Numero";
+            ws.Cells[1, 3].Value = "Número";
             ws.Cells[1, 4].Value = "Fecha Emisión";
             ws.Cells[1, 5].Value = "Sunat Anulado";
             ws.Cells[1, 6].Value = "Forma Pago";
-            ws.Cells[1, 7].Value = "Cliente";
-            ws.Cells[1, 8].Value = "Tipo";
-            ws.Cells[1, 9].Value = "Código";
-            ws.Cells[1, 10].Value = "Descripción";
-            ws.Cells[1, 11].Value = "Cantidad";
-            ws.Cells[1, 12].Value = "Valor Unit.";
-            ws.Cells[1, 13].Value = "Subtotal";
-            ws.Cells[1, 14].Value = "IGV";
-            ws.Cells[1, 15].Value = "Total";
-            ws.Cells[1, 16].Value = "Hora";
+            ws.Cells[1, 7].Value = "DNI Cliente";
+            ws.Cells[1, 8].Value = "Cliente";
+            ws.Cells[1, 9].Value = "Tipo";
+            ws.Cells[1, 10].Value = "Código";
+            ws.Cells[1, 11].Value = "Descripción";
+            ws.Cells[1, 12].Value = "Cantidad";
+            ws.Cells[1, 13].Value = "Valor Unit.";
+            ws.Cells[1, 14].Value = "Subtotal";
+            ws.Cells[1, 15].Value = "IGV";
+            ws.Cells[1, 16].Value = "Total";
+            ws.Cells[1, 17].Value = "Hora";
+            ws.Cells[1, 18].Value = "Empleados";
 
-            using (var range = ws.Cells[1, 1, 1, 14])
+            using (var range = ws.Cells[1, 1, 1, 18])
             {
                 range.Style.Font.Bold = true;
                 range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
                 range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
             }
 
+            // =====================
+            // CONTENIDO
+            // =====================
             int row = 2;
 
             foreach (var venta in ventas)
             {
-                foreach (var detalle in venta.Detalles)
-                {
-                    ws.Cells[row, 1].Value = $"{venta.TipoComprobante} {venta.Serie}-{venta.Numero}";
-                    ws.Cells[row, 2].Value = venta.Serie;
-                    ws.Cells[row, 3].Value = venta.Numero;
-                    ws.Cells[row, 4].Value = venta.FechaEmision.ToString("dd/MM/yyyy");
-                    ws.Cells[row, 5].Value = venta.EstadoSunat; 
-                    ws.Cells[row, 6].Value = venta.MetodoPago;
-                    ws.Cells[row, 7].Value = venta.ClienteNombre;
-                    ws.Cells[row, 8].Value = "NIÑO"; 
-                    ws.Cells[row, 9].Value = detalle.Codigo;
-                    ws.Cells[row, 10].Value = detalle.Descripcion;
-                    ws.Cells[row, 11].Value = detalle.Cantidad;
-                    ws.Cells[row, 12].Value = detalle.ValorUnitario;
-                    ws.Cells[row, 13].Value = detalle.Subtotal;
-                    ws.Cells[row, 14].Value = detalle.Igv;
-                    ws.Cells[row, 15].Value = detalle.Total;
-                    ws.Cells[row, 16].Value = venta.FechaEmision.ToString("HH:mm");
-                    row++;
-                }
-            }
+                var empleadosTexto = venta.Empleados != null && venta.Empleados.Any()
+                    ? string.Join(", ", venta.Empleados)
+                    : "SIN EMPLEADO";
 
-            ws.Cells[ws.Dimension.Address].AutoFitColumns();
-
-            var excelBytes = package.GetAsByteArray();
-            var nombreArchivo = $"ReporteDiario_{DateTime.Now:yyyyMMdd}.xlsx";
-
-            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombreArchivo);
-        }
-
-
-        [HttpGet("reporte-diario3")]
-        public async Task<IActionResult> ReporteDiario3([FromQuery] DateTime fecha)
-        {
-            // Solo necesario si usas EPPlus <=7.2.2
-            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
-
-            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
-
-
-            var ventas = await _facturacionService.GenerarReporteDiario(establishmentId, fecha);
-
-            using var package = new ExcelPackage();
-            var ws = package.Workbook.Worksheets.Add("Reporte Diario");
-
-            // Cabecera general
-            ws.Cells[1, 1].Value = "Documento";
-            ws.Cells[1, 2].Value = "Serie";
-            ws.Cells[1, 3].Value = "Numero";
-            ws.Cells[1, 4].Value = "Fecha Emisión";
-            ws.Cells[1, 5].Value = "Sunat Anulado";
-            ws.Cells[1, 6].Value = "Forma Pago";
-            ws.Cells[1, 7].Value = "Cliente";
-            ws.Cells[1, 8].Value = "Tipo";
-            ws.Cells[1, 9].Value = "Código";
-            ws.Cells[1, 10].Value = "Descripción";
-            ws.Cells[1, 11].Value = "Cantidad";
-            ws.Cells[1, 12].Value = "Valor Unit.";
-            ws.Cells[1, 13].Value = "Subtotal";
-            ws.Cells[1, 14].Value = "IGV";
-            ws.Cells[1, 15].Value = "Total";
-            ws.Cells[1, 16].Value = "Hora";
-
-            using (var range = ws.Cells[1, 1, 1, 14])
-            {
-                range.Style.Font.Bold = true;
-                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
-            }
-
-            int row = 2;
-
-            foreach (var venta in ventas)
-            {
                 foreach (var detalle in venta.Detalles)
                 {
                     ws.Cells[row, 1].Value = $"{venta.TipoComprobante} {venta.Serie}-{venta.Numero}";
@@ -772,18 +707,148 @@ namespace FacturacionAPI.Controllers
                     ws.Cells[row, 4].Value = venta.FechaEmision.ToString("dd/MM/yyyy");
                     ws.Cells[row, 5].Value = venta.EstadoSunat;
                     ws.Cells[row, 6].Value = venta.MetodoPago;
-                    ws.Cells[row, 7].Value = venta.ClienteNombre;
-                    ws.Cells[row, 8].Value = "NIÑO";
-                    ws.Cells[row, 9].Value = detalle.Codigo;
-                    ws.Cells[row, 10].Value = detalle.Descripcion;
-                    ws.Cells[row, 11].Value = detalle.Cantidad;
-                    ws.Cells[row, 12].Value = detalle.ValorUnitario;
-                    ws.Cells[row, 13].Value = detalle.Subtotal;
-                    ws.Cells[row, 14].Value = detalle.Igv;
-                    ws.Cells[row, 15].Value = detalle.Total;
-                    ws.Cells[row, 16].Value = venta.FechaEmision.ToString("HH:mm");
+                    ws.Cells[row, 7].Value = venta.ClienteDocumento;
+                    ws.Cells[row, 8].Value = venta.ClienteNombre;
+                    ws.Cells[row, 9].Value = "NIÑO";
+                    ws.Cells[row, 10].Value = detalle.Codigo;
+                    ws.Cells[row, 11].Value = detalle.Descripcion;
+                    ws.Cells[row, 12].Value = detalle.Cantidad;
+                    ws.Cells[row, 13].Value = detalle.ValorUnitario;
+                    ws.Cells[row, 14].Value = detalle.Subtotal;
+                    ws.Cells[row, 15].Value = detalle.Igv;
+                    ws.Cells[row, 16].Value = detalle.Total;
+                    ws.Cells[row, 17].Value = venta.FechaEmision.ToString("HH:mm");
+                    ws.Cells[row, 18].Value = empleadosTexto;
+
                     row++;
                 }
+            }
+
+            // =====================
+            // AJUSTES FINALES
+            // =====================
+            ws.Cells[row, 15].Value = "TOTAL GENERAL";
+            ws.Cells[row, 15].Style.Font.Bold = true;
+
+            ws.Cells[row, 16].Formula = $"SUM(P2:P{row - 1})";
+            ws.Cells[row, 16].Style.Font.Bold = true;
+
+
+            using (var range = ws.Cells[row, 15, row, 16])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightYellow);
+                range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
+            }
+
+            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+
+            var excelBytes = package.GetAsByteArray();
+            var nombreArchivo = $"ReporteMensual{DateTime.Now:yyyyMMdd}.xlsx";
+
+            return File(
+                excelBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                nombreArchivo
+            );
+        }
+
+
+        [HttpGet("reporte-diario3")]
+        public async Task<IActionResult> ReporteDiario3([FromQuery] DateTime fecha)
+        {
+            // EPPlus (solo necesario en versiones <= 7.2.2)
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
+            var ventas = await _facturacionService.GenerarReporteDiario(establishmentId, fecha);
+
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Reporte Diario");
+
+            // =====================
+            // CABECERAS
+            // =====================
+            ws.Cells[1, 1].Value = "Documento";
+            ws.Cells[1, 2].Value = "Serie";
+            ws.Cells[1, 3].Value = "Número";
+            ws.Cells[1, 4].Value = "Fecha Emisión";
+            ws.Cells[1, 5].Value = "Sunat Anulado";
+            ws.Cells[1, 6].Value = "Forma Pago";
+            ws.Cells[1, 7].Value = "DNI Cliente";
+            ws.Cells[1, 8].Value = "Cliente";
+            ws.Cells[1, 9].Value = "Tipo";
+            ws.Cells[1, 10].Value = "Código";
+            ws.Cells[1, 11].Value = "Descripción";
+            ws.Cells[1, 12].Value = "Cantidad";
+            ws.Cells[1, 13].Value = "Valor Unit.";
+            ws.Cells[1, 14].Value = "Subtotal";
+            ws.Cells[1, 15].Value = "IGV";
+            ws.Cells[1, 16].Value = "Total";
+            ws.Cells[1, 17].Value = "Hora";
+            ws.Cells[1, 18].Value = "Empleados";
+
+            using (var range = ws.Cells[1, 1, 1, 18])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            // =====================
+            // CONTENIDO
+            // =====================
+            int row = 2;
+
+            foreach (var venta in ventas)
+            {
+                var empleadosTexto = venta.Empleados != null && venta.Empleados.Any()
+                    ? string.Join(", ", venta.Empleados)
+                    : "SIN EMPLEADO";
+
+                foreach (var detalle in venta.Detalles)
+                {
+                    ws.Cells[row, 1].Value = $"{venta.TipoComprobante} {venta.Serie}-{venta.Numero}";
+                    ws.Cells[row, 2].Value = venta.Serie;
+                    ws.Cells[row, 3].Value = venta.Numero;
+                    ws.Cells[row, 4].Value = venta.FechaEmision.ToString("dd/MM/yyyy");
+                    ws.Cells[row, 5].Value = venta.EstadoSunat;
+                    ws.Cells[row, 6].Value = venta.MetodoPago;
+                    ws.Cells[row, 7].Value = venta.ClienteDocumento;
+                    ws.Cells[row, 8].Value = venta.ClienteNombre;
+                    ws.Cells[row, 9].Value = "NIÑO";
+                    ws.Cells[row, 10].Value = detalle.Codigo;
+                    ws.Cells[row, 11].Value = detalle.Descripcion;
+                    ws.Cells[row, 12].Value = detalle.Cantidad;
+                    ws.Cells[row, 13].Value = detalle.ValorUnitario;
+                    ws.Cells[row, 14].Value = detalle.Subtotal;
+                    ws.Cells[row, 15].Value = detalle.Igv;
+                    ws.Cells[row, 16].Value = detalle.Total;
+                    ws.Cells[row, 17].Value = venta.FechaEmision.ToString("HH:mm");
+                    ws.Cells[row, 18].Value = empleadosTexto;
+
+                    row++;
+                }
+            }
+
+            // =====================
+            // AJUSTES FINALES
+            // =====================
+            ws.Cells[row, 15].Value = "TOTAL GENERAL";
+            ws.Cells[row, 15].Style.Font.Bold = true;
+
+            ws.Cells[row, 16].Formula = $"SUM(P2:P{row - 1})";
+            ws.Cells[row, 16].Style.Font.Bold = true;
+
+
+            using (var range = ws.Cells[row, 15, row, 16])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightYellow);
+                range.Style.Border.Top.Style = OfficeOpenXml.Style.ExcelBorderStyle.Thin;
             }
 
             ws.Cells[ws.Dimension.Address].AutoFitColumns();
@@ -791,7 +856,12 @@ namespace FacturacionAPI.Controllers
             var excelBytes = package.GetAsByteArray();
             var nombreArchivo = $"ReporteDiario_{DateTime.Now:yyyyMMdd}.xlsx";
 
-            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombreArchivo);
+            return File(
+                excelBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                nombreArchivo
+            );
         }
+
     }
 }

@@ -176,7 +176,8 @@ namespace FacturacionAPI.Services
                 LastName = dto.LastName,
                 FechaCumpleanios = dto.FechaCumpleanios,
                 ClientId = dto.ClientId,
-                IsActive = true
+                IsActive = true,
+                Genero = dto.Genero
             };
 
             _context.ChildrenClient.Add(child);
@@ -195,7 +196,8 @@ namespace FacturacionAPI.Services
                         FirstName = ch.FirstName,
                         LastName = ch.LastName,
                         FechaCumpleanios = ch.FechaCumpleanios,
-                        ClientId = ch.ClientId
+                        ClientId = ch.ClientId,
+                        Genero = ch.Genero
                     })
                     .ToListAsync();
 
@@ -218,6 +220,9 @@ namespace FacturacionAPI.Services
 
             if (dto.FechaCumpleanios.HasValue)
                 child.FechaCumpleanios = dto.FechaCumpleanios.Value;
+
+            if (!string.IsNullOrWhiteSpace(dto.Genero))
+                child.Genero = dto.Genero;
 
             _context.ChildrenClient.Update(child);
             await _context.SaveChangesAsync();
