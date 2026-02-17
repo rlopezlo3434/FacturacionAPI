@@ -17,6 +17,7 @@
         public int Quantity { get; set; } = 1;
 
         public decimal UnitPrice { get; set; }
+        public decimal Discount { get; set; } = 0;
     }
 
     public class VehicleBudgetListDto
@@ -50,6 +51,8 @@
         public int Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
+        public decimal Discount { get; set; } = 0;
+        public bool IsApproved { get; set; }
 
         public CatalogItemDto? Product { get; set; }
         public CatalogItemDto? Service { get; set; }

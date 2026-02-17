@@ -63,6 +63,21 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, message = result.Message });
         }
 
+        [Authorize]
+        [HttpPost("clientAddress/{id}")]
+        public async Task<IActionResult> CreateClientAddress(int id, [FromBody] ClientAddress dto)
+        {
+            if (dto == null)
+                return BadRequest("Datos inválidos.");
+
+            var result = await _clientService.CreateClientAddress(id, dto);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
         [HttpPost("{clientId}/numbers")]
         public async Task<IActionResult> SaveNumbers(int clientId, [FromBody] List<ClientContactCreateDto> numbers)
         {

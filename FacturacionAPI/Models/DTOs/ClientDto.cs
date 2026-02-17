@@ -20,6 +20,8 @@ namespace FacturacionAPI.Models.DTOs
 
         public List<ClientContactDto> Numbers { get; set; }
 
+        public List<ClientAddresses> Addresses { get; set; }
+
         public int EstablishmentId { get; set; }
         public bool IsActive { get; set; } = true;
         public bool AcceptsMarketing { get; set; } = false;
@@ -41,6 +43,14 @@ namespace FacturacionAPI.Models.DTOs
         public string Number { get; set; }
         public string? ContactName { get; set; }
         public int Type { get; set; }
+        public bool IsPrimary { get; set; }
+    }
+
+    public class ClientAddresses
+    {
+        public int Id { get; set; }
+        public string? AddressName { get; set; }
+        public string? Address {  get; set; }
         public bool IsPrimary { get; set; }
     }
 }

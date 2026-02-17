@@ -12,6 +12,7 @@ namespace FacturacionAPI.Models.DTOs
         public GenderEnum Gender { get; set; }
         public bool AcceptsMarketing { get; set; }
         public List<ClientContactCreateDto> Numbers { get; set; } = new();
+        public List<ClientAddressesDto> Addresses { get; set; } = new();
     }
 
 
@@ -20,6 +21,14 @@ namespace FacturacionAPI.Models.DTOs
         public string? ContactName { get; set; }
         public int Type { get; set; } // 1..4 (ContactTypeEnum)
         public string Number { get; set; } = default!;
+        public bool IsPrimary { get; set; }
+    }
+
+    public class ClientAddressesDto 
+    {
+        public int Id { get; set; }
+        public string? AddressName { get; set; }
+        public string? Address { get; set; }
         public bool IsPrimary { get; set; }
     }
 }

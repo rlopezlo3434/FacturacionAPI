@@ -244,6 +244,35 @@ namespace FacturacionAPI.Migrations
                     b.ToTable("Client");
                 });
 
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.ClientAddress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("AddressName")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("bit");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.ToTable("ClientAddresses");
+                });
+
             modelBuilder.Entity("FacturacionAPI.Models.Entities.ClientNumbers", b =>
                 {
                     b.Property<int>("Id")
@@ -495,6 +524,9 @@ namespace FacturacionAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<decimal>("Cost")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -517,12 +549,17 @@ namespace FacturacionAPI.Migrations
                     b.Property<string>("SerialCode")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int?>("UnitMeasureId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
                     b.HasIndex("BrandId");
+
+                    b.HasIndex("UnitMeasureId");
 
                     b.ToTable("Products");
                 });
@@ -731,6 +768,32 @@ namespace FacturacionAPI.Migrations
                     b.ToTable("StockMovement");
                 });
 
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.UnitMeasure", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UnitMeasure");
+                });
+
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Vehicle", b =>
                 {
                     b.Property<int>("Id")
@@ -758,6 +821,14 @@ namespace FacturacionAPI.Migrations
                         .IsRequired()
                         .HasMaxLength(15)
                         .HasColumnType("nvarchar(15)");
+
+                    b.Property<string>("SerialNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Vin")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("Year")
                         .HasColumnType("int");
@@ -847,6 +918,15 @@ namespace FacturacionAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
+                    b.Property<decimal>("Discount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsInWorkOrder")
+                        .HasColumnType("bit");
+
                     b.Property<int>("ItemType")
                         .HasColumnType("int");
 
@@ -917,6 +997,56 @@ namespace FacturacionAPI.Migrations
                     b.HasIndex("VehicleId");
 
                     b.ToTable("VehicleIntakes");
+                });
+
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.VehicleIntakeDiagram", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("MarkedImageUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("VehicleIntakeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VehicleIntakeId");
+
+                    b.ToTable("VehicleIntakeDiagram");
+                });
+
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.VehicleIntakeImage", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ImageUrl")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("VehicleIntakeId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VehicleIntakeId");
+
+                    b.ToTable("VehicleIntakeImages");
                 });
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.VehicleIntakeInventoryItem", b =>
@@ -1154,9 +1284,6 @@ namespace FacturacionAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
-                    b.Property<int>("BudgetId")
-                        .HasColumnType("int");
-
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1175,8 +1302,6 @@ namespace FacturacionAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("BudgetId");
-
                     b.HasIndex("VehicleIntakeId");
 
                     b.ToTable("WorkOrders");
@@ -1190,10 +1315,13 @@ namespace FacturacionAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IsCompleted")
                         .HasColumnType("bit");
 
-                    b.Property<int>("ItemType")
+                    b.Property<int?>("ItemType")
                         .HasColumnType("int");
 
                     b.Property<string>("Observations")
@@ -1202,10 +1330,13 @@ namespace FacturacionAPI.Migrations
                     b.Property<int?>("ProductId")
                         .HasColumnType("int");
 
-                    b.Property<int>("Quantity")
+                    b.Property<int?>("Quantity")
                         .HasColumnType("int");
 
                     b.Property<int?>("ServiceMasterId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("VehicleBudgetItemId")
                         .HasColumnType("int");
 
                     b.Property<int>("WorkOrderId")
@@ -1216,6 +1347,8 @@ namespace FacturacionAPI.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("ServiceMasterId");
+
+                    b.HasIndex("VehicleBudgetItemId");
 
                     b.HasIndex("WorkOrderId");
 
@@ -1294,6 +1427,17 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Establishment");
                 });
 
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.ClientAddress", b =>
+                {
+                    b.HasOne("FacturacionAPI.Models.Entities.Client", "Client")
+                        .WithMany("Addresses")
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
             modelBuilder.Entity("FacturacionAPI.Models.Entities.ClientNumbers", b =>
                 {
                     b.HasOne("FacturacionAPI.Models.Entities.Client", "Client")
@@ -1360,7 +1504,13 @@ namespace FacturacionAPI.Migrations
                         .WithMany()
                         .HasForeignKey("BrandId");
 
+                    b.HasOne("FacturacionAPI.Models.Entities.UnitMeasure", "UnitMeasure")
+                        .WithMany()
+                        .HasForeignKey("UnitMeasureId");
+
                     b.Navigation("Brand");
+
+                    b.Navigation("UnitMeasure");
                 });
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Promotion", b =>
@@ -1468,6 +1618,28 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.VehicleIntakeDiagram", b =>
+                {
+                    b.HasOne("FacturacionAPI.Models.Entities.VehicleIntake", "VehicleIntake")
+                        .WithMany("ImagesDiagram")
+                        .HasForeignKey("VehicleIntakeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("VehicleIntake");
+                });
+
+            modelBuilder.Entity("FacturacionAPI.Models.Entities.VehicleIntakeImage", b =>
+                {
+                    b.HasOne("FacturacionAPI.Models.Entities.VehicleIntake", "VehicleIntake")
+                        .WithMany("Images")
+                        .HasForeignKey("VehicleIntakeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("VehicleIntake");
+                });
+
             modelBuilder.Entity("FacturacionAPI.Models.Entities.VehicleIntakeInventoryItem", b =>
                 {
                     b.HasOne("FacturacionAPI.Models.Entities.InventoryMasterItem", "InventoryMasterItem")
@@ -1566,19 +1738,11 @@ namespace FacturacionAPI.Migrations
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.WorkOrder", b =>
                 {
-                    b.HasOne("FacturacionAPI.Models.Entities.VehicleBudget", "Budget")
-                        .WithMany()
-                        .HasForeignKey("BudgetId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
                     b.HasOne("FacturacionAPI.Models.Entities.VehicleIntake", "VehicleIntake")
                         .WithMany()
                         .HasForeignKey("VehicleIntakeId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
-
-                    b.Navigation("Budget");
 
                     b.Navigation("VehicleIntake");
                 });
@@ -1593,6 +1757,12 @@ namespace FacturacionAPI.Migrations
                         .WithMany()
                         .HasForeignKey("ServiceMasterId");
 
+                    b.HasOne("FacturacionAPI.Models.Entities.VehicleBudgetItem", "VehicleBudgetItem")
+                        .WithMany()
+                        .HasForeignKey("VehicleBudgetItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("FacturacionAPI.Models.Entities.WorkOrder", "WorkOrder")
                         .WithMany("Items")
                         .HasForeignKey("WorkOrderId")
@@ -1602,6 +1772,8 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ServiceMaster");
+
+                    b.Navigation("VehicleBudgetItem");
 
                     b.Navigation("WorkOrder");
                 });
@@ -1616,6 +1788,8 @@ namespace FacturacionAPI.Migrations
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Client", b =>
                 {
+                    b.Navigation("Addresses");
+
                     b.Navigation("Numbers");
                 });
 
@@ -1642,6 +1816,10 @@ namespace FacturacionAPI.Migrations
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.VehicleIntake", b =>
                 {
+                    b.Navigation("Images");
+
+                    b.Navigation("ImagesDiagram");
+
                     b.Navigation("InventoryItems");
                 });
 

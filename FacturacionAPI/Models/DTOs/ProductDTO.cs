@@ -1,11 +1,14 @@
-﻿namespace FacturacionAPI.Models.DTOs
+﻿using FacturacionAPI.Models.Entities;
+
+namespace FacturacionAPI.Models.DTOs
 {
     public class ProductCreateUpdateDto
     {
         public string Name { get; set; } = null!;
         public int Quantity { get; set; }
         public string? SerialCode { get; set; }
-
+        public int? UnitMeasureId { get; set; }
+        public decimal Cost { get; set; }
         public decimal Price { get; set; } // ✅ agregado
 
         public bool IsMultiBrand { get; set; }
@@ -19,7 +22,8 @@
         public string Name { get; set; } = null!;
         public int Quantity { get; set; }
         public string? SerialCode { get; set; }
-
+        public UnitMeasure? UnitMeasure { get; set; }
+        public decimal Cost { get; set; }
         public decimal Price { get; set; } // ✅ agregado
 
         public bool IsMultiBrand { get; set; }

@@ -12,8 +12,8 @@ namespace FacturacionAPI.Models.Entities
         public int VehicleIntakeId { get; set; }
         public VehicleIntake VehicleIntake { get; set; } = null!;
 
-        public int BudgetId { get; set; } // presupuesto oficial
-        public VehicleBudget Budget { get; set; } = null!;
+        //public int? BudgetId { get; set; } // presupuesto oficial
+        //public VehicleBudget Budget { get; set; } = null!;
 
         public string? Notes { get; set; } // notas internas para mecánicos
 

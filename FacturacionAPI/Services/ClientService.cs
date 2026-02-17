@@ -19,6 +19,7 @@ namespace FacturacionAPI.Services
         {
             return await _context.Client
                 .Include(e => e.Numbers)
+                .Include(e => e.Addresses)
                 .Include(e => e.Establishment)
                 .Where(e => e.EstablishmentId == establishmentId)
                 .Select(e => new ClientDto
@@ -52,6 +53,16 @@ namespace FacturacionAPI.Services
                             ContactName = c.ContactName,
                             Type = (int)c.Type,
                             IsPrimary = c.IsPrimary
+                        }).ToList(),
+
+                    Addresses = e.Addresses
+                        .OrderByDescending(c => c.IsPrimary)
+                        .Select(c => new ClientAddresses
+                        {
+                            Id = c.Id,
+                            Address = c.Address,
+                            AddressName = c.AddressName,
+                            IsPrimary= c.IsPrimary
                         }).ToList()
                 })
                 .ToListAsync();
@@ -137,6 +148,33 @@ namespace FacturacionAPI.Services
                 await _context.ClientNumbers.AddRangeAsync(newNumbers);
             }
 
+            if (dto.Addresses != null)
+            {
+                if (dto.Addresses.Count(x => x.IsPrimary) > 1)
+                    return (false, "Solo puede existir una dirección principal.");
+
+                if(dto.Addresses.Count > 0 && !dto.Addresses.Any(x => x.IsPrimary))
+                    dto.Addresses[0].IsPrimary = true;
+
+                var oldAddress = await _context.ClientAddresses
+                    .Where(x => x.ClientId == client.Id)
+                    .ToListAsync();
+
+                if(oldAddress.Any())
+                    _context.ClientAddresses.RemoveRange(oldAddress);
+
+                var newAddress = dto.Addresses.Select(n => new ClientAddress
+                {
+                    ClientId = client.Id,
+                    AddressName = n.AddressName,
+                    Address = n.Address,
+                    IsPrimary = n.IsPrimary
+                }).ToList();
+
+                await _context.ClientAddresses.AddRangeAsync(newAddress);
+            }
+                
+
             await _context.SaveChangesAsync();
 
             return (true, "Cliente actualizado correctamente.");
@@ -189,6 +227,26 @@ namespace FacturacionAPI.Services
                 await _context.SaveChangesAsync();
             }
 
+            if(dto.Addresses != null && dto.Addresses.Count > 0)
+            {
+                if (dto.Addresses.Count(x => x.IsPrimary) > 1)
+                    return (false, "Solo puede existir una dirección principal.");
+
+                if(!dto.Addresses.Any(x => x.IsPrimary))
+                    dto.Addresses[0].IsPrimary = true;
+
+                var address = dto.Addresses.Select(n => new ClientAddress
+                {
+                    ClientId = client.Id,
+                    AddressName = n.AddressName,
+                    Address = n.Address,
+                    IsPrimary = n.IsPrimary
+                }).ToList();
+
+                _context.ClientAddresses.AddRange(address);
+                await _context.SaveChangesAsync();
+            }
+
             return (true, "Cliente creado correctamente.");
         }
 
@@ -207,6 +265,27 @@ namespace FacturacionAPI.Services
             };
 
             _context.ClientNumbers.Add(client);
+            await _context.SaveChangesAsync();
+
+            return (true, "Numero agregado correctamente.");
+        }
+
+        public async Task<(bool Success, string Message)> CreateClientAddress(int id, ClientAddress dto)
+        {
+            var exists = await _context.ClientAddresses.AnyAsync(c =>
+                c.Address == dto.Address);
+
+            if (exists)
+                return (false, "Ya existe la dirección en la BD.");
+
+            var client = new ClientAddress
+            {
+                ClientId = id,
+                Address = dto.Address.Trim(),
+                AddressName = dto.Address.Trim()
+            };
+
+            _context.ClientAddresses.Add(client);
             await _context.SaveChangesAsync();
 
             return (true, "Numero agregado correctamente.");

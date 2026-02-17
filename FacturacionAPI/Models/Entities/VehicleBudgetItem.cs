@@ -26,6 +26,12 @@ namespace FacturacionAPI.Models.Entities
         public decimal UnitPrice { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
+        public decimal Discount { get; set; } = 0;
+        public bool IsApproved { get; set; } = false;
+
+        [Column(TypeName = "decimal(18,2)")]
         public decimal TotalPrice { get; set; }
+
+        public bool IsInWorkOrder { get; set; } = false;
     }
 }

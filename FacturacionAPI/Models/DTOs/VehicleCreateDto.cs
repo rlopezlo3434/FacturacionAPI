@@ -4,6 +4,10 @@
     {
         public int EstablishmentId { get; set; }
         public string Plate { get; set; } = null!;
+
+        public string SerialNumber { get; set; } = null!;
+        public string Vin { get; set; } = null!;
+
         public int BrandId { get; set; }
         public int ModelId { get; set; }
 
@@ -18,6 +22,8 @@
     {
         public int EstablishmentId { get; set; }
         public string Plate { get; set; } = null!;
+        public string SerialNumber { get; set; } = null!;
+        public string Vin { get; set; } = null!;
         public int BrandId { get; set; }
         public int ModelId { get; set; }
 

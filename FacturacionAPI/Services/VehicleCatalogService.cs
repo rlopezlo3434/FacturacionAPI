@@ -61,5 +61,16 @@ namespace FacturacionAPI.Services
             await _context.SaveChangesAsync();
             return (true, "Modelo creado correctamente.");
         }
+
+        public async Task<List<UnitMeasure>> GetUnitMeasuresAsync()
+        {
+            var data = await _context.UnitMeasure
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Name)
+                .Select(x => new UnitMeasure { Id = x.Id, Code = x.Code, Name = x.Name, IsActive = x.IsActive })
+                .ToListAsync();
+
+            return data;
+        }
     }
 }

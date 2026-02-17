@@ -21,6 +21,8 @@ namespace FacturacionAPI.Services
                 {
                     Id = v.Id,
                     Plate = v.Plate,
+                    SerialNumber = v.SerialNumber,
+                    Vin = v.Vin,
                     Year = v.Year,
                     Color = v.Color,
                     CurrentMileageKm = v.CurrentMileageKm,
@@ -68,7 +70,8 @@ namespace FacturacionAPI.Services
             var vehicle = new Vehicle
             {
                 Plate = dto.Plate.Trim().ToUpper(),
-                BrandId = dto.BrandId,
+                SerialNumber = dto.SerialNumber.Trim(),
+                Vin = dto.Vin.Trim(),
                 ModelId = dto.ModelId,
                 Year = dto.Year,
                 Color = dto.Color,
@@ -114,6 +117,8 @@ namespace FacturacionAPI.Services
                 return (false, "El modelo no pertenece a la marca seleccionada.");
 
             vehicle.Plate = dto.Plate.Trim().ToUpper();
+            vehicle.SerialNumber = dto.SerialNumber.Trim();
+            vehicle.Vin = dto.Vin.Trim();
             vehicle.BrandId = dto.BrandId;
             vehicle.ModelId = dto.ModelId;
             vehicle.Year = dto.Year;

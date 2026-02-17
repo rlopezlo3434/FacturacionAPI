@@ -65,7 +65,16 @@ namespace FacturacionAPI.Services
                 if (item.UnitPrice < 0)
                     return (false, "Precio inválido.");
 
-                var totalItem = item.UnitPrice * item.Quantity;
+                if (item.Discount < 0)
+                    return (false, "Descuento inválido.");
+
+                var gross = item.UnitPrice * item.Quantity;
+
+                if (item.Discount > gross)
+                    return (false, "El descuento no puede ser mayor al total del ítem.");
+
+                var totalItem = gross - item.Discount;
+
                 subtotal += totalItem;
 
                 budget.Items.Add(new VehicleBudgetItem
@@ -75,7 +84,9 @@ namespace FacturacionAPI.Services
                     ServiceMasterId = item.ServiceMasterId,
                     Quantity = item.Quantity,
                     UnitPrice = item.UnitPrice,
-                    TotalPrice = totalItem
+                    Discount = item.Discount,   
+                    TotalPrice = totalItem,
+                    IsApproved = false           // ✅ SIEMPRE false al crear
                 });
             }
 
@@ -86,6 +97,53 @@ namespace FacturacionAPI.Services
             await _context.SaveChangesAsync();
 
             return (true, "Presupuesto creado correctamente.");
+        }
+
+        public async Task<(bool Success, string Message)> ApproveBudgetItemsAsync(
+    BudgetApprovalRequestDto dto)
+        {
+            var budget = await _context.VehicleBudgets
+                .Include(b => b.Items)
+                .FirstOrDefaultAsync(b => b.Id == dto.BudgetId && b.IsActive);
+
+            if (budget == null)
+                return (false, "Presupuesto no encontrado.");
+
+            decimal totalApproved = 0;
+
+            foreach (var itemDto in dto.Items)
+            {
+                var item = budget.Items.FirstOrDefault(x => x.Id == itemDto.ItemId);
+                if (item == null) continue;
+
+                // ✅ actualizar valores editables
+                item.Quantity = itemDto.Quantity;
+                item.UnitPrice = itemDto.UnitPrice;
+                item.IsApproved = itemDto.IsApproved;
+
+                var gross = item.Quantity * item.UnitPrice;
+
+                var discount = itemDto.Discount < 0 ? 0 : itemDto.Discount;
+                if (discount > gross) discount = gross;
+
+                item.Discount = discount;
+                item.TotalPrice = gross - discount;
+
+                if (item.IsApproved)
+                {
+                    totalApproved += item.TotalPrice;
+                }
+            }
+
+            // ✅ total solo de items aprobados
+            budget.Total = totalApproved;
+
+            // opcional: aprobado si hay al menos 1 item aprobado
+            budget.IsApproved = budget.Items.Any(i => i.IsApproved);
+
+            await _context.SaveChangesAsync();
+
+            return (true, "Aprobaciones guardadas correctamente.");
         }
 
         // ✅ aprobar presupuesto (vuelve oficial)
@@ -176,8 +234,10 @@ namespace FacturacionAPI.Services
                         Id = i.Id,
                         ItemType = (int)i.ItemType,
                         Quantity = i.Quantity,
+                        Discount = i.Discount,
                         UnitPrice = i.UnitPrice,
                         TotalPrice = i.TotalPrice,
+                        IsApproved = i.IsApproved,
                         Product = i.ProductId == null ? null : new CatalogItemDto
                         {
                             Id = i.Product!.Id,

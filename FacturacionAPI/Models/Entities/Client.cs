@@ -26,6 +26,8 @@ namespace FacturacionAPI.Models.Entities
 
         public ICollection<ClientNumbers> Numbers { get; set; } = new List<ClientNumbers>();
 
+        public ICollection<ClientAddress> Addresses { get; set; } = new List<ClientAddress>();
+
         // Relaciones
         public int EstablishmentId { get; set; }
         public Establishment Establishment { get; set; }

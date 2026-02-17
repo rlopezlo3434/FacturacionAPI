@@ -11,7 +11,7 @@ namespace FacturacionAPI.Models.Entities
         public int WorkOrderId { get; set; }
         public WorkOrder WorkOrder { get; set; } = null!;
 
-        public BudgetItemType ItemType { get; set; } // Product o Service
+        public BudgetItemType? ItemType { get; set; } 
 
         public int? ProductId { get; set; }
         public Product? Product { get; set; }
@@ -19,10 +19,17 @@ namespace FacturacionAPI.Models.Entities
         public int? ServiceMasterId { get; set; }
         public ServicesMaster? ServiceMaster { get; set; }
 
-        public int Quantity { get; set; } = 1;
+        public int? Quantity { get; set; } = 1;
 
-        public string? Observations { get; set; } // opcional para mecánico
 
-        public bool IsCompleted { get; set; } = false; // estado mecánico
+        public int VehicleBudgetItemId { get; set; }
+        public VehicleBudgetItem VehicleBudgetItem { get; set; } = null!;
+
+
+        public string? Observations { get; set; }
+
+        public bool IsCompleted { get; set; } = false; 
+
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
     }
 }

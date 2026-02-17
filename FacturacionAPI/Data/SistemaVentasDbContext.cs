@@ -20,7 +20,7 @@ namespace FacturacionAPI.Data
         public DbSet<VehicleBudgetItem> VehicleBudgetItems { get; set; }
         public DbSet<WorkOrder> WorkOrders { get; set; }
         public DbSet<WorkOrderItem> WorkOrderItems { get; set; }
-
+        public DbSet<VehicleIntakeDiagram> VehicleIntakeDiagram { get; set; }
 
 
         public DbSet<Companie> Companie { get; set; }
@@ -29,6 +29,9 @@ namespace FacturacionAPI.Data
         public DbSet<Employee> Employee { get; set; }
         public DbSet<Client> Client { get; set; }
         public DbSet<ClientNumbers> ClientNumbers { get; set; }
+        public DbSet<ClientAddress> ClientAddresses { get; set; }
+        public DbSet<UnitMeasure> UnitMeasure { get; set; }
+        public DbSet<VehicleIntakeImage> VehicleIntakeImages { get; set; }
 
         public DbSet<VehicleBrand> VehicleBrands { get; set; }
         public DbSet<VehicleModel> VehicleModels { get; set; }
@@ -94,11 +97,11 @@ namespace FacturacionAPI.Data
                 .HasForeignKey(x => x.VehicleIntakeId)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            modelBuilder.Entity<WorkOrder>()
-                .HasOne(x => x.Budget)
-                .WithMany()
-                .HasForeignKey(x => x.BudgetId)
-                .OnDelete(DeleteBehavior.NoAction);
+            //modelBuilder.Entity<WorkOrder>()
+            //    .HasOne(x => x.Budget)
+            //    .WithMany()
+            //    .HasForeignKey(x => x.BudgetId)
+            //    .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }

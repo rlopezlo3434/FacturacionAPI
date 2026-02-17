@@ -20,7 +20,8 @@ namespace FacturacionAPI.Controllers
         }
 
         [HttpGet("document-identification-types")]
-        public IActionResult Get() {
+        public IActionResult Get()
+        {
             var documentIdentificationTypes = Enum.GetValues(typeof(Models.Enums.DocumentIdentificationType))
                 .Cast<Models.Enums.DocumentIdentificationType>()
                 .Select(e => new
@@ -87,6 +88,13 @@ namespace FacturacionAPI.Controllers
             var result = await _service.CreateModelAsync(dto.BrandId, dto.Name, dto.IsActive);
             if (!result.Success) return BadRequest(new { success = false, message = result.Message });
             return Ok(new { success = true, message = result.Message });
+        }
+
+        [HttpGet("unit-measures")]
+        public async Task<IActionResult> GetUnitMeasures()
+        {
+            var data = await _service.GetUnitMeasuresAsync();
+            return Ok(new { success = true, data });
         }
     }
 }

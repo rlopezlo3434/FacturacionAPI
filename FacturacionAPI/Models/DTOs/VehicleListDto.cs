@@ -5,6 +5,8 @@
         public int Id { get; set; }
 
         public string Plate { get; set; } = null!;
+        public string SerialNumber { get; set; } = null!;
+        public string Vin { get; set; } = null!;
 
         public int Year { get; set; }
         public string? Color { get; set; }

@@ -65,6 +65,8 @@ app.UseSwaggerUI();
 
 //app.UseHttpsRedirection();
 
+app.UseStaticFiles();
+
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();

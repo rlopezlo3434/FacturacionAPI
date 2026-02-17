@@ -2,6 +2,7 @@
 using FacturacionAPI.Models.DTOs;
 using FacturacionAPI.Models.Entities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 
 namespace FacturacionAPI.Services
 {
@@ -32,7 +33,15 @@ namespace FacturacionAPI.Services
                     {
                         Id = x.Brand.Id,
                         Name = x.Brand.Name
+                    },
+                    Cost = x.Cost,
+                    UnitMeasure = x.UnitMeasure == null ? null : new UnitMeasure
+                    {
+                        Id = x.UnitMeasure.Id,
+                        Code = x.UnitMeasure.Code,
+                        Name = x.UnitMeasure.Name
                     }
+
                 })
                 .ToListAsync();
         }
@@ -47,7 +56,10 @@ namespace FacturacionAPI.Services
 
             if (dto.Price < 0)
                 return (false, "El precio no puede ser negativo.");
-
+            
+            if (dto.Cost < 0)
+                return (false, "El costo no puede ser negativo.");
+            
             if (dto.IsMultiBrand)
                 dto.BrandId = null;
 
@@ -60,6 +72,12 @@ namespace FacturacionAPI.Services
                 if (!brandExists)
                     return (false, "La marca seleccionada no existe.");
             }
+            if(dto.UnitMeasureId != null)
+            {
+                var unitMeasure = await _context.UnitMeasure.AnyAsync(x => x.Id == dto.UnitMeasureId);
+                if (!unitMeasure)
+                    return (false, "La unidad de medida seleccionada no existe.");
+            }
 
             var code = await GenerateCodeAsync();
 
@@ -69,6 +87,8 @@ namespace FacturacionAPI.Services
                 Name = dto.Name.Trim(),
                 Quantity = dto.Quantity,
                 SerialCode = dto.SerialCode?.Trim(),
+                Cost = dto.Cost,
+                UnitMeasureId = dto.UnitMeasureId,
                 Price = dto.Price, // ✅
                 IsMultiBrand = dto.IsMultiBrand,
                 BrandId = dto.IsMultiBrand ? null : dto.BrandId,
@@ -97,6 +117,9 @@ namespace FacturacionAPI.Services
             if (dto.Price < 0)
                 return (false, "El precio no puede ser negativo.");
 
+            if (dto.Cost < 0)
+                return (false, "El costo no puede ser negativo.");
+
             if (dto.IsMultiBrand)
                 dto.BrandId = null;
 
@@ -110,9 +133,18 @@ namespace FacturacionAPI.Services
                     return (false, "La marca seleccionada no existe.");
             }
 
+            if (dto.UnitMeasureId != null)
+            {
+                var unitMeasure = await _context.UnitMeasure.AnyAsync(x => x.Id == dto.UnitMeasureId);
+                if (!unitMeasure)
+                    return (false, "La unidad de medida seleccionada no existe.");
+            }
+
             product.Name = dto.Name.Trim();
             product.Quantity = dto.Quantity;
             product.SerialCode = dto.SerialCode?.Trim();
+            product.Cost = dto.Cost;
+            product.UnitMeasureId = dto.UnitMeasureId;
             product.Price = dto.Price; 
             product.IsMultiBrand = dto.IsMultiBrand;
             product.BrandId = dto.IsMultiBrand ? null : dto.BrandId;

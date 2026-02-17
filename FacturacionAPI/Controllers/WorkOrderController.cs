@@ -26,6 +26,17 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, message = result.Message });
         }
 
+        [HttpPost("from-intake/{intakeId}")]
+        public async Task<IActionResult> GenerateWorkOrder(int intakeId)
+        {
+            var result = await _service.GenerateOrUpdateWorkOrderAsync(intakeId);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
         // ✅ GET api/WorkOrder
         [HttpGet]
         public async Task<IActionResult> GetAll()

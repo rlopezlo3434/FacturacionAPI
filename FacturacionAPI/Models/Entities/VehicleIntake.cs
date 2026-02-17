@@ -27,5 +27,10 @@ namespace FacturacionAPI.Models.Entities
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public List<VehicleIntakeInventoryItem> InventoryItems { get; set; } = new();
+
+        public ICollection<VehicleIntakeImage> Images { get; set; } = new List<VehicleIntakeImage>();
+
+        public ICollection<VehicleIntakeDiagram> ImagesDiagram { get; set; } = new List<VehicleIntakeDiagram>();
+
     }
 }

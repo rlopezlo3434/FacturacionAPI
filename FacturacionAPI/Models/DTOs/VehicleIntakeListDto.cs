@@ -1,4 +1,7 @@
-﻿namespace FacturacionAPI.Models.DTOs
+﻿using FacturacionAPI.Migrations;
+using FacturacionAPI.Models.Entities;
+
+namespace FacturacionAPI.Models.DTOs
 {
     public class VehicleIntakeListDto
     {
@@ -40,6 +43,9 @@
         public ClientMiniDto2 Client { get; set; } = null!;
 
         public List<VehicleIntakeInventoryDetailDto> InventoryItems { get; set; } = new();
+
+        public List<VehicleIntakeImageDto> Images { get; set; } = new();
+        public List<VehicleIntakeDiagram> ImagesDiagram { get; set; } = new();
     }
 
     public class VehicleIntakeInventoryDetailDto
@@ -70,6 +76,11 @@
     {
         public int Id { get; set; }
         public string Name { get; set; } = null!;
+    }
+    public class VehicleIntakeImageDto
+    {
+        public int Id { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
     }
 
 }

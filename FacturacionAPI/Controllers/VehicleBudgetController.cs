@@ -35,6 +35,17 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, message = result.Message });
         }
 
+        [HttpPost("approve-items")]
+        public async Task<IActionResult> ApproveItems([FromBody] BudgetApprovalRequestDto dto)
+        {
+            var result = await _service.ApproveBudgetItemsAsync(dto);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
         // ✅ PUT api/VehicleBudget/approve/10
         [HttpPut("approve/{budgetId}")]
         public async Task<IActionResult> Approve(int budgetId)

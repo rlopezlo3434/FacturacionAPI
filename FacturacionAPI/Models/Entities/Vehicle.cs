@@ -10,6 +10,9 @@ namespace FacturacionAPI.Models.Entities
         [Required, MaxLength(15)]
         public string Plate { get; set; } = null!;
 
+        public string SerialNumber { get; set; } = null!;
+        public string Vin { get; set; } = null!;
+
         public int BrandId { get; set; }
         public VehicleBrand Brand { get; set; } = null!;
 

@@ -16,9 +16,14 @@ namespace FacturacionAPI.Models.Entities
 
         public string? SerialCode { get; set; } // Ejm P240
 
-        // ✅ Precio
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal Cost { get; set; }
+
+        public int? UnitMeasureId { get; set; }
+        public UnitMeasure UnitMeasure { get; set; } = null!;
 
         public bool IsMultiBrand { get; set; } = false;
 

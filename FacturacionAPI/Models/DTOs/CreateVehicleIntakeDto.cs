@@ -11,12 +11,13 @@
         public int MileageKm { get; set; }
         public string? Observations { get; set; }
 
-        public List<CreateVehicleIntakeInventoryItemDto> InventoryItems { get; set; } = new();
+        //public List<CreateVehicleIntakeInventoryItemDto> InventoryItems { get; set; } = new();
+        public string InventoryItems { get; set; }
     }
 
     public class CreateVehicleIntakeInventoryItemDto
     {
-        public int InventoryMasterItemId { get; set; }
-        public bool IsPresent { get; set; }
+        public int inventoryMasterItemId { get; set; }
+        public bool isPresent { get; set; }
     }
 }

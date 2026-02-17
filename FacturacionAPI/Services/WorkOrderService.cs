@@ -42,7 +42,7 @@ namespace FacturacionAPI.Services
             {
                 Code = code,
                 VehicleIntakeId = intakeId,
-                BudgetId = budget.Id,
+                //BudgetId = budget.Id,
                 Notes = budget.Notes, // puedes copiar o dejar null
                 CreatedAt = DateTime.Now,
                 IsActive = true
@@ -50,20 +50,72 @@ namespace FacturacionAPI.Services
 
             foreach (var item in budget.Items)
             {
-                wo.Items.Add(new WorkOrderItem
-                {
-                    ItemType = item.ItemType,
-                    ProductId = item.ProductId,
-                    ServiceMasterId = item.ServiceMasterId,
-                    Quantity = item.Quantity,
-                    IsCompleted = false
-                });
+                //wo.Items.Add(new WorkOrderItem
+                //{
+                //    ItemType = item.ItemType,
+                //    ProductId = item.ProductId,
+                //    ServiceMasterId = item.ServiceMasterId,
+                //    Quantity = item.Quantity,
+                //    IsCompleted = false
+                //});
             }
 
             _context.WorkOrders.Add(wo);
             await _context.SaveChangesAsync();
 
             return (true, $"Orden de Trabajo {code} generada correctamente.");
+        }
+
+        public async Task<(bool Success, string Message)> GenerateOrUpdateWorkOrderAsync(int intakeId)
+        {
+            var intakeExists = await _context.VehicleIntakes.AnyAsync(x => x.Id == intakeId);
+            if (!intakeExists)
+                return (false, "Internamiento no existe.");
+
+            var workOrder = await _context.WorkOrders
+                .FirstOrDefaultAsync(x => x.VehicleIntakeId == intakeId && x.IsActive);
+
+            if (workOrder == null)
+            {
+                workOrder = new WorkOrder
+                {
+                    Code = await GenerateWorkOrderCodeAsync(),
+                    VehicleIntakeId = intakeId,
+                    CreatedAt = DateTime.Now,
+                    IsActive = true
+                };
+
+                _context.WorkOrders.Add(workOrder);
+                await _context.SaveChangesAsync();
+            }
+
+            // 👉 marcar ítems aprobados como parte de la OT
+            var approvedItems = await _context.VehicleBudgetItems
+                .Where(x =>
+                    x.VehicleBudget.VehicleIntakeId == intakeId &&
+                    x.IsApproved &&
+                    !x.IsInWorkOrder)
+                .ToListAsync();
+
+            foreach (var item in approvedItems)
+            {
+                var exists = await _context.WorkOrderItems.AnyAsync(w =>
+                    w.WorkOrderId == workOrder.Id &&
+                    w.VehicleBudgetItemId == item.Id);
+
+                if (!exists)
+                {
+                    _context.WorkOrderItems.Add(new WorkOrderItem
+                    {
+                        WorkOrderId = workOrder.Id,
+                        VehicleBudgetItemId = item.Id
+                    });
+                }
+            }
+
+            await _context.SaveChangesAsync();
+
+            return (true, $"Orden de Trabajo {workOrder.Code} lista con ítems aprobados.");
         }
 
         private async Task<string> GenerateWorkOrderCodeAsync()
@@ -107,7 +159,7 @@ namespace FacturacionAPI.Services
                     VehicleIntakeId = x.VehicleIntakeId,
                     Mode = (int)x.VehicleIntake.Mode,
                     CreatedAt = x.CreatedAt,
-                    IsCompleted = x.Items.All(i => i.IsCompleted),
+                    //IsCompleted = x.Items.All(i => i.IsCompleted),
 
                     Vehicle = new VehicleMiniDto
                     {
@@ -141,11 +193,26 @@ namespace FacturacionAPI.Services
                 .Include(x => x.VehicleIntake).ThenInclude(i => i.Vehicle).ThenInclude(v => v.Brand)
                 .Include(x => x.VehicleIntake).ThenInclude(i => i.Vehicle).ThenInclude(v => v.Model)
                 .Include(x => x.VehicleIntake).ThenInclude(i => i.Client)
-                .Include(x => x.Items).ThenInclude(i => i.Product)
-                .Include(x => x.Items).ThenInclude(i => i.ServiceMaster)
-                .FirstOrDefaultAsync(x => x.Id == id);
+                .FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
 
             if (wo == null) return null;
+
+            // ✅ ITEMS DE OT = ITEMS APROBADOS DE PRESUPUESTOS
+            var items = await _context.WorkOrderItems
+                        .Where(x => x.WorkOrderId == wo.Id)
+                        .Select(x => new WorkOrderItemDto
+                        {
+                            Id = x.Id,
+                            ItemType = (int)x.VehicleBudgetItem.ItemType,
+                            BudgetItemId = x.VehicleBudgetItemId,
+                            Name = x.VehicleBudgetItem.ProductId != null
+                                ? x.VehicleBudgetItem.Product!.Name
+                                : x.VehicleBudgetItem.ServiceMaster!.Name,
+                            Quantity = x.VehicleBudgetItem.Quantity,
+                            IsCompleted = x.IsCompleted,
+                            Observations = x.Observations
+                        })
+                        .ToListAsync();
 
             return new WorkOrderDetailDto
             {
@@ -153,9 +220,7 @@ namespace FacturacionAPI.Services
                 Code = wo.Code,
                 VehicleIntakeId = wo.VehicleIntakeId,
                 Mode = (int)wo.VehicleIntake.Mode,
-                Notes = wo.Notes,
                 CreatedAt = wo.CreatedAt,
-                IsCompleted = wo.Items.All(i => i.IsCompleted),
 
                 Vehicle = new VehicleMiniDto
                 {
@@ -179,17 +244,7 @@ namespace FacturacionAPI.Services
                     Names = wo.VehicleIntake.Client.Names
                 },
 
-                Items = wo.Items.Select(i => new WorkOrderItemDto
-                {
-                    Id = i.Id,
-                    ItemType = (int)i.ItemType,
-                    Quantity = i.Quantity,
-                    IsCompleted = i.IsCompleted,
-                    Observations = i.Observations,
-                    Name = i.ItemType == BudgetItemType.Product
-                        ? (i.Product != null ? i.Product.Name : "Producto")
-                        : (i.ServiceMaster != null ? i.ServiceMaster.Name : "Servicio")
-                }).ToList()
+                Items = items
             };
         }
 
@@ -213,6 +268,12 @@ namespace FacturacionAPI.Services
 
                 dbItem.IsCompleted = item.IsCompleted;
                 dbItem.Observations = item.Observations;
+            }
+
+            // ✅ opcional: cerrar OT si todos están completos
+            if (wo.Items.Any() && wo.Items.All(x => x.IsCompleted))
+            {
+                wo.IsActive = false; // OT finalizada
             }
 
             // ✅ si todos están completos, OT completada (opcional)
