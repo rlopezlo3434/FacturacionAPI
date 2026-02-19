@@ -107,10 +107,14 @@ namespace FacturacionAPI.Controllers
         }
 
         [HttpGet("excel-mensual")]
-        public async Task<IActionResult> ReporteMensual()
+        public async Task<IActionResult> ReporteMensual([FromQuery] DateTime? fecha)
         {
-            int year = DateTime.Now.Year;
-            int month = DateTime.Now.Month;
+            // Si no envían fecha, usar la actual
+            DateTime fechaBase = fecha ?? DateTime.Now;
+
+            int year = fechaBase.Year;
+            int month = fechaBase.Month;
+
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
             var excelBytes = await _service.GenerarReporteMensual(establishmentId, year, month);
