@@ -4,6 +4,7 @@ using FacturacionAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    partial class SistemaVentasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260219071507_Invoices")]
+    partial class Invoices
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -529,18 +531,9 @@ namespace FacturacionAPI.Migrations
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("VehicleBudgetItemId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
                     b.HasIndex("InvoiceId");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("ServiceMasterId");
-
-                    b.HasIndex("VehicleBudgetItemId");
 
                     b.ToTable("InvoicesItem");
                 });
@@ -998,9 +991,6 @@ namespace FacturacionAPI.Migrations
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsInWorkOrder")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsInvoiced")
                         .HasColumnType("bit");
 
                     b.Property<int>("ItemType")
@@ -1562,26 +1552,6 @@ namespace FacturacionAPI.Migrations
                         .HasForeignKey("InvoiceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.HasOne("FacturacionAPI.Models.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId");
-
-                    b.HasOne("FacturacionAPI.Models.Entities.ServicesMaster", "ServiceMaster")
-                        .WithMany()
-                        .HasForeignKey("ServiceMasterId");
-
-                    b.HasOne("FacturacionAPI.Models.Entities.VehicleBudgetItem", "VehicleBudgetItem")
-                        .WithMany()
-                        .HasForeignKey("VehicleBudgetItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-
-                    b.Navigation("ServiceMaster");
-
-                    b.Navigation("VehicleBudgetItem");
                 });
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Item", b =>

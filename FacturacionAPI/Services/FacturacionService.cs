@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using FacturacionAPI.Models.Enums;
+using FacturacionAPI.Migrations;
 
 namespace FacturacionAPI.Services
 {
@@ -155,11 +156,16 @@ namespace FacturacionAPI.Services
             // 🔹 Construir items
             var items = request.items.Select(i =>
             {
-                decimal precioConIgv = i.value;
-                decimal valorSinIgv = Math.Round(precioConIgv / FACTOR_IGV, 2);
-                decimal subtotal = Math.Round(valorSinIgv * i.cantidad, 2);
-                decimal igv = Math.Round(subtotal * IGV_PERCENT / 100, 2);
-                decimal total = Math.Round(precioConIgv * i.cantidad, 2);
+                // ✅ AHORA VIENE SIN IGV
+                decimal valorSinIgv = i.value;
+                decimal precioConIgv =
+                    Math.Round(valorSinIgv * FACTOR_IGV, 2);
+                decimal subtotal =
+                    Math.Round(valorSinIgv * i.cantidad, 2);
+                decimal igv =
+                    Math.Round(subtotal * IGV_PERCENT / 100, 2);
+                decimal total =
+                    Math.Round(subtotal + igv, 2);
 
                 return new
                 {
@@ -167,13 +173,17 @@ namespace FacturacionAPI.Services
                     codigo = i.code,
                     descripcion = i.description,
                     cantidad = i.cantidad,
+
+                    // ✅ SUNAT
                     valor_unitario = valorSinIgv,
                     precio_unitario = precioConIgv,
+
                     subtotal,
                     tipo_de_igv = 1,
                     igv,
                     total
                 };
+
             }).ToList();
 
             decimal total = Math.Round(items.Sum(x => (decimal)x.total), 2);
@@ -199,7 +209,7 @@ namespace FacturacionAPI.Services
                 cliente_numero_de_documento = request.cliente_numero,
                 cliente_denominacion = request.cliente_nombre,
                 cliente_direccion = "",
-                fecha_de_emision = request.fecha_emision.ToString("dd-MM-yyyy"),
+                fecha_de_emision = request.fecha_emision?.ToString("dd-MM-yyyy"),
                 moneda = 1,
                 porcentaje_de_igv = IGV_PERCENT,
                 total_gravada = totalGravada,
@@ -244,7 +254,7 @@ namespace FacturacionAPI.Services
                     CodigoHash = nubefactResp.GetProperty("codigo_hash").GetString(),
                     EnlacePdf = nubefactResp.GetProperty("enlace_del_pdf").GetString(),
                     FechaEmision = DateTime.Now,
-                    MetodoPago = request.metodo_pago,
+                    MetodoPago = request.metodo_pago.ToString() == "CONTADO" ? request.metodo_pago.Value : MetodoPago.Efectivo,
                     EstablishmentId = establishmentId,
                     Detalles = request.items.Select(i => new VentaDetalle
                     {
@@ -298,25 +308,25 @@ namespace FacturacionAPI.Services
 
                 var products = _context.ProductDefinition.ToList();
 
-                // 🔹 Guardar empleados asignados por servicio
-                foreach (var item in request.items)
-                {
-                    if (item.empleados != null && item.empleados.Any())
-                    {
-                        var productId = products.Where(x => x.Code == item.code).FirstOrDefault();
+                //// 🔹 Guardar empleados asignados por servicio
+                //foreach (var item in request.items)
+                //{
+                //    if (item.empleados != null && item.empleados.Any())
+                //    {
+                //        var productId = products.Where(x => x.Code == item.code).FirstOrDefault();
 
-                        foreach (var empleado in item.empleados)
-                        {
-                            _context.ventaEmpleados.Add(new VentaEmpleado
-                            {
-                                VentaId = venta.Id,
-                                EmpleadoId = empleado.id,
-                                ProductDefinitionId = productId.Id,
-                                FechaRegistro = DateTime.Now
-                            });
-                        }
-                    }
-                }
+                //        foreach (var empleado in item.empleados)
+                //        {
+                //            _context.ventaEmpleados.Add(new VentaEmpleado
+                //            {
+                //                VentaId = venta.Id,
+                //                EmpleadoId = empleado.id,
+                //                ProductDefinitionId = productId.Id,
+                //                FechaRegistro = DateTime.Now
+                //            });
+                //        }
+                //    }
+                //}
 
                 try
                 {
@@ -351,14 +361,18 @@ namespace FacturacionAPI.Services
         {
             var establishment = await _context.Establishment.FindAsync(establishmentId);
 
-            // 🔹 Construir items igual que en el método real
             var items = request.items.Select(i =>
             {
-                decimal precioConIgv = i.value;
-                decimal valorSinIgv = Math.Round(precioConIgv / FACTOR_IGV, 2);
-                decimal subtotal = Math.Round(valorSinIgv * i.cantidad, 2);
-                decimal igv = Math.Round(subtotal * IGV_PERCENT / 100, 2);
-                decimal total = Math.Round(precioConIgv * i.cantidad, 2);
+                // ✅ AHORA VIENE SIN IGV
+                decimal valorSinIgv = i.value;
+                decimal precioConIgv =
+                    Math.Round(valorSinIgv * FACTOR_IGV, 2);
+                decimal subtotal =
+                    Math.Round(valorSinIgv * i.cantidad, 2);
+                decimal igv =
+                    Math.Round(subtotal * IGV_PERCENT / 100, 2);
+                decimal total =
+                    Math.Round(subtotal + igv, 2);
 
                 return new
                 {
@@ -373,6 +387,7 @@ namespace FacturacionAPI.Services
                     igv,
                     total
                 };
+
             }).ToList();
 
             decimal total = Math.Round(items.Sum(x => (decimal)x.total), 2);
@@ -403,7 +418,7 @@ namespace FacturacionAPI.Services
                 CodigoHash = "HASH_FAKE_PARA_PRUEBAS",
                 EnlacePdf = "PDF_FAKE_PARA_PRUEBAS",
                 FechaEmision = DateTime.Now,
-                MetodoPago = request.metodo_pago,
+                MetodoPago = request.metodo_pago.ToString() == "CONTADO" ? request.metodo_pago.Value : MetodoPago.Efectivo,
                 EstablishmentId = establishmentId,
                 Detalles = request.items.Select(i => new VentaDetalle
                 {
@@ -419,68 +434,9 @@ namespace FacturacionAPI.Services
             };
 
             _context.Ventas.Add(venta);
-
-            // 🔹 Actualizar stock
-            foreach (var i in request.items)
-            {
-                var itemEntity = await _context.Items
-                    .Include(x => x.ProductDefinition)
-                    .Include(x => x.Stock)
-                    .FirstOrDefaultAsync(x => x.EstablishmentId == establishmentId && x.ProductDefinition.Code == i.code);
-
-                if (itemEntity != null && itemEntity.ProductDefinition.Item == ItemEnum.producto)
-                {
-                    if (itemEntity.Stock == null)
-                    {
-                        itemEntity.Stock = new Stock { Quantity = 0 };
-                    }
-
-                    var movimiento = new StockMovement
-                    {
-                        ItemId = itemEntity.Id,
-                        MovementType = MovementType.Salida,
-                        Quantity = i.cantidad,
-                        Notes = $"Venta {venta.Serie}-{venta.Numero}"
-                    };
-
-                    _context.StockMovement.Add(movimiento);
-
-                    itemEntity.Stock.Quantity -= i.cantidad;
-                    if (itemEntity.Stock.Quantity < 0)
-                        itemEntity.Stock.Quantity = 0;
-                }
-            }
-
-            // 🔹 Guardar Venta y Detalles (YA TIENEN ID REAL)
+           
             await _context.SaveChangesAsync();
-
-            // 🔹 MAPEAR: buscar el ID real de cada detalle recién creado
-            var detallesMap = venta.Detalles.ToDictionary(d => d.Codigo, d => d.Id);
-
-            var products = _context.ProductDefinition.ToList();
-
-            // 🔹 Guardar empleados asignados por servicio
-            foreach (var item in request.items)
-            {
-                if (item.empleados != null && item.empleados.Any())
-                {
-                    int ventaItemId = detallesMap[item.code];
-
-                    var productId = products.Where(x => x.Code == item.code).FirstOrDefault();
-
-                    foreach (var empleado in item.empleados)
-                    {
-                        _context.ventaEmpleados.Add(new VentaEmpleado
-                        {
-                            VentaId = venta.Id,
-                            EmpleadoId = empleado.id,
-                            ProductDefinitionId = productId.Id,
-                            FechaRegistro = DateTime.Now
-                        });
-                    }
-                }
-            }
-
+         
             try
             {
                 await _context.SaveChangesAsync();
@@ -503,22 +459,7 @@ namespace FacturacionAPI.Services
             };
         }
 
-        //public async Task<List<VentaEmpleado>> listVentaEmpleado(int establishmentId)
-        //{
-        //    var hoy = DateTime.Today;
-        //    var inicioMes = new DateTime(hoy.Year, hoy.Month, 1);
-        //    var finMes = inicioMes.AddMonths(1);
-
-        //    return await _context.ventaEmpleados
-        //        .Include(v => v.Empleado)
-        //        .Include(v => v.productDefinition)
-        //        .Include(v => v.Venta)
-        //            .ThenInclude(v => v.Detalles)
-        //         .Where(v => v.FechaRegistro >= inicioMes &&
-        //            v.FechaRegistro < finMes &&
-        //            v.Venta.EstablishmentId == establishmentId && v.Venta.IsAnnulled == false)
-        //        .ToListAsync();
-        //}
+       
 
         public async Task<List<VentaEmpleado>> listVentaEmpleado(int establishmentId)
         {
@@ -641,6 +582,87 @@ namespace FacturacionAPI.Services
 
             return reporte;
         }
+
+        public async Task<(bool Success, string Message, int InvoiceId)>
+        CreateInvoiceFromApprovedItemsAsync(int intakeId)
+        {
+            // ✅ items aprobados NO facturados
+            var approvedItems = await _context.VehicleBudgetItems
+                .Include(x => x.VehicleBudget)
+               .Where(x =>
+                    x.IsApproved &&
+                    !x.IsInvoiced &&
+                    x.VehicleBudget.VehicleIntakeId == intakeId &&
+                    x.VehicleBudget.IsActive)
+                .ToListAsync();
+
+            if (!approvedItems.Any())
+                return (false, "No existen nuevos items aprobados para facturar.", 0);
+
+            var invoice = new Invoice
+            {
+                VehicleIntakeId = intakeId,
+                CreatedAt = DateTime.Now,
+                IsActive = true
+            };
+
+            decimal total = 0;
+
+            foreach (var item in approvedItems)
+            {
+                invoice.Items.Add(new InvoiceItem
+                {
+                    VehicleBudgetItemId = item.Id, // ⭐ CLAVE
+
+                    ItemType = item.ItemType,
+                    ProductId = item.ProductId,
+                    ServiceMasterId = item.ServiceMasterId,
+
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    Discount = item.Discount,
+                    TotalPrice = item.TotalPrice
+                });
+
+                item.IsInvoiced = true;
+
+                total += item.TotalPrice;
+            }
+
+            invoice.Total = total;
+
+            _context.Invoices.Add(invoice);
+            await _context.SaveChangesAsync();
+
+            return (true, "Factura generada correctamente.", invoice.Id);
+        }
+
+        public async Task<List<InvoiceSelectableItemDto>>
+        GetApprovedItemsForInvoiceAsync()
+        {
+            var items = await _context.InvoicesItem
+                                     .Include(i => i.Product)
+                                     .Include(i => i.ServiceMaster)
+                                     .Select(i => new InvoiceSelectableItemDto
+                                     {
+                                         BudgetItemId = i.Id,
+                                         IntakeCode = i.VehicleBudgetItem.VehicleBudget.Code,
+                                         Description =
+                                             i.Product != null
+                                                 ? i.Product.Name
+                                                 : i.ServiceMaster!.Name,
+                                         ItemType = (int)i.ItemType,
+                                         Quantity = i.Quantity,
+                                         Discount = i.Discount,
+                                         UnitPrice = i.UnitPrice,
+                                         SubTotal = i.TotalPrice,
+                                         Selected = false
+                                     })
+                                     .ToListAsync();
+            return items;
+        
+        }
+
 
     }
 }

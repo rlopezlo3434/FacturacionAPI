@@ -33,5 +33,7 @@ namespace FacturacionAPI.Models.Entities
         public decimal TotalPrice { get; set; }
 
         public bool IsInWorkOrder { get; set; } = false;
+
+        public bool IsInvoiced { get; set; } = false;
     }
 }

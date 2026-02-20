@@ -84,8 +84,8 @@ namespace FacturacionAPI.Controllers
 
             try
             {
-                var resultado = await _facturacionService.RegistrarVentaAsync(request, establishmentId);
-                //var resultado = await _facturacionService.RegistrarVentaPruebasAsync(request, establishmentId);
+                //var resultado = await _facturacionService.RegistrarVentaAsync(request, establishmentId);
+                var resultado = await _facturacionService.RegistrarVentaPruebasAsync(request, establishmentId);
 
                 return Ok(resultado);
             }
@@ -644,6 +644,36 @@ namespace FacturacionAPI.Controllers
 
             return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombreArchivo);
         }
+
+        [HttpPost("create-from-intake/{intakeId}")]
+        public async Task<IActionResult> CreateFromIntake(int intakeId)
+        {
+            var result = await _facturacionService.CreateInvoiceFromApprovedItemsAsync(intakeId);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new
+            {
+                success = true,
+                message = result.Message,
+                invoiceId = result.InvoiceId
+            });
+        }
+
+
+        [HttpGet("approved-items")]
+        public async Task<IActionResult> GetApprovedItems()
+        {
+            var data = await _facturacionService.GetApprovedItemsForInvoiceAsync();
+
+            return Ok(new
+            {
+                success = true,
+                data
+            });
+        }
+
 
     }
 }

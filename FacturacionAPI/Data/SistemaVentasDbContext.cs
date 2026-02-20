@@ -37,7 +37,8 @@ namespace FacturacionAPI.Data
         public DbSet<VehicleModel> VehicleModels { get; set; }
         public DbSet<Vehicle> Vehicles { get; set; }
         public DbSet<VehicleOwner> VehicleOwners { get; set; }
-
+        public DbSet<Invoice> Invoices { get; set; }
+        public DbSet<InvoiceItem> InvoicesItem { get; set; }
 
         public DbSet<Item> Items { get; set; }
         public DbSet<Stock> Stock { get; set; }
