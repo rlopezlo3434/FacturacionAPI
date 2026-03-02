@@ -20,6 +20,7 @@
 
     public class ReporteDetalleDto
     {
+        public string Tipo { get; set; } = string.Empty;
         public string Codigo { get; set; } = string.Empty;
         public string Descripcion { get; set; } = string.Empty;
         public decimal Cantidad { get; set; }
@@ -28,6 +29,8 @@
         public decimal Subtotal { get; set; }
         public decimal Igv { get; set; }
         public decimal Total { get; set; }
+
+        public string Empleado { get; set; }
     }
 
 }

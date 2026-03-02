@@ -40,7 +40,7 @@ namespace FacturacionAPI.Controllers
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            return Ok(await _dashboardService.GetTopServiciosDia(5, fecha));
+            return Ok(await _dashboardService.GetTopServiciosDia(establishmentId, fecha));
         }
 
         [HttpGet("top-servicios-mes")]
@@ -48,7 +48,7 @@ namespace FacturacionAPI.Controllers
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            return Ok(await _dashboardService.GetTopServiciosMes(5, fecha));
+            return Ok(await _dashboardService.GetTopServiciosMes(establishmentId, fecha));
         }
 
 
@@ -57,7 +57,7 @@ namespace FacturacionAPI.Controllers
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            return Ok(await _dashboardService.GetTopServiciosDiaCantidad(5, fecha));
+            return Ok(await _dashboardService.GetTopServiciosDiaCantidad(establishmentId, fecha));
         }
 
         [HttpGet("top-servicios-mes-cantidad")]
@@ -65,7 +65,7 @@ namespace FacturacionAPI.Controllers
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            return Ok(await _dashboardService.GetTopServiciosMesCantidad(5, fecha));
+            return Ok(await _dashboardService.GetTopServiciosMesCantidad(establishmentId, fecha));
         }
 
         [HttpGet("comparativo-mensual")]
@@ -73,7 +73,7 @@ namespace FacturacionAPI.Controllers
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            return Ok(await _dashboardService.GetComparativoVentas(5, fecha));
+            return Ok(await _dashboardService.GetComparativoVentas(establishmentId, fecha));
         }
 
         [HttpGet("comparativo-diario-circle")]
@@ -81,7 +81,7 @@ namespace FacturacionAPI.Controllers
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            return Ok(await _dashboardService.GetComparativoDiario(5,fecha));
+            return Ok(await _dashboardService.GetComparativoDiario(establishmentId,fecha));
         }
 
         [HttpGet("comparativo-mensual-circle")]
@@ -89,7 +89,7 @@ namespace FacturacionAPI.Controllers
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            return Ok(await _dashboardService.GetComparativoMensual(5,fecha));
+            return Ok(await _dashboardService.GetComparativoMensual(establishmentId,fecha));
         }
 
         [HttpGet("productividad-personal")]
@@ -98,6 +98,13 @@ namespace FacturacionAPI.Controllers
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
             return Ok(await _dashboardService.GetProductividadPersonal(establishmentId, fecha));
+        }
+
+        [HttpGet("productividad-personal-Masivo")]
+        public async Task<IActionResult> ProductividadPersonalMasivo(DateTime fecha)
+        {
+
+            return Ok(await _dashboardService.GetProductividadPersonalMasivo(fecha));
         }
 
         [HttpGet("contribucion-estilista-dia")]

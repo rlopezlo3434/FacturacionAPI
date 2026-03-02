@@ -40,7 +40,8 @@
     {
         public string Empleado { get; set; }
         public decimal Importe { get; set; }
-        public int Cantidad { get; set; }
+        public decimal Cantidad { get; set; }
+        public string Establecimiento { get; set; }
     }
 
     public class ContribucionEstilistaDto

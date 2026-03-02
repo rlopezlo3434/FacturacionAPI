@@ -58,8 +58,13 @@ namespace FacturacionAPI.Services
                 .ToList();
 
             // Total del día actual
+            var inicioDia = fecha.Date;
+            var finDia = inicioDia.AddDays(1);
+
             var totalDia = ventasMes
-                .Where(v => v.FechaEmision.Date == fecha.Date)
+                .Where(v =>
+                    v.FechaEmision >= inicioDia &&
+                    v.FechaEmision < finDia)
                 .Sum(v => v.Total);
 
             // Total acumulado del mes
@@ -285,11 +290,11 @@ namespace FacturacionAPI.Services
             var ayer = hoy.AddDays(-1);
 
             var totalHoy = await _context.Ventas
-                .Where(x => x.FechaEmision.Date == hoy && x.EstablishmentId == establishmentId)
+                .Where(x => x.FechaEmision.Date == hoy && x.EstablishmentId == establishmentId && x.IsAnnulled == false)
                 .SumAsync(x => (decimal?)x.Total) ?? 0;
 
             var totalAyer = await _context.Ventas
-                .Where(x => x.FechaEmision.Date == ayer && x.EstablishmentId == establishmentId)
+                .Where(x => x.FechaEmision.Date == ayer && x.EstablishmentId == establishmentId && x.IsAnnulled == false)
                 .SumAsync(x => (decimal?)x.Total) ?? 0;
 
             return new ComparativoResponse
@@ -302,28 +307,131 @@ namespace FacturacionAPI.Services
             };
         }
 
-        public async Task<ComparativoResponse> GetComparativoMensual(int establishmentId, DateTime fecha)
+        public async Task<ComparativoResponse> GetComparativoMensual(
+    int establishmentId,
+    DateTime fecha)
         {
-            var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
-            var inicioMesAnterior = inicioMes.AddMonths(-1);
-            var finMesAnterior = inicioMes.AddDays(-1);
+            // ---------------------------
+            // MES ACTUAL
+            // ---------------------------
+            var inicioMesActual = new DateTime(fecha.Year, fecha.Month, 1);
+            var finPeriodoActual = fecha.Date.AddDays(1);
 
+            // ---------------------------
+            // MES ANTERIOR (MISMO DÍA)
+            // ---------------------------
+            var inicioMesAnterior = inicioMesActual.AddMonths(-1);
+
+            // evitar problemas Febrero / meses cortos
+            var diasMesAnterior = DateTime.DaysInMonth(
+                inicioMesAnterior.Year,
+                inicioMesAnterior.Month);
+
+            var diaComparacion = Math.Min(fecha.Day, diasMesAnterior);
+
+            var finPeriodoAnterior = new DateTime(
+                inicioMesAnterior.Year,
+                inicioMesAnterior.Month,
+                diaComparacion).AddDays(1); ;
+
+            // ---------------------------
+            // TOTAL MES ACTUAL
+            // ---------------------------
             var totalMesActual = await _context.Ventas
-                .Where(x => x.FechaEmision >= inicioMes && x.FechaEmision <= fecha && x.EstablishmentId == establishmentId)
+                .Where(x =>
+                    x.FechaEmision >= inicioMesActual &&
+                    x.FechaEmision < finPeriodoActual &&
+                    x.EstablishmentId == establishmentId &&
+                    !x.IsAnnulled)
                 .SumAsync(x => (decimal?)x.Total) ?? 0;
 
+            // ---------------------------
+            // TOTAL MES ANTERIOR
+            // ---------------------------
             var totalMesAnterior = await _context.Ventas
-                .Where(x => x.FechaEmision >= inicioMesAnterior && x.FechaEmision <= finMesAnterior && x.EstablishmentId == establishmentId)
+                .Where(x =>
+                    x.FechaEmision >= inicioMesAnterior &&
+                    x.FechaEmision < finPeriodoAnterior &&
+                    x.EstablishmentId == establishmentId &&
+                    !x.IsAnnulled)
                 .SumAsync(x => (decimal?)x.Total) ?? 0;
+
+            // ---------------------------
+            // PORCENTAJE
+            // ---------------------------
+            var porcentaje = totalMesAnterior == 0
+                ? 100
+                : Math.Round(
+                    ((totalMesActual - totalMesAnterior) / totalMesAnterior) * 100,
+                    2);
 
             return new ComparativoResponse
             {
                 Actual = totalMesActual,
                 Anterior = totalMesAnterior,
-                Porcentaje = totalMesAnterior == 0
-                    ? 100
-                    : Math.Round(((totalMesActual - totalMesAnterior) / totalMesAnterior) * 100, 2)
+                Porcentaje = porcentaje
             };
+        }
+
+        public async Task<List<ProductividadEmpleadoDto>> GetProductividadPersonalMasivo(DateTime fecha)
+        {
+            var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
+            var finMes = inicioMes.AddMonths(1);
+
+            var data = await _context.ventaEmpleados
+                .Include(v => v.Empleado)
+                .Include(v => v.productDefinition)
+                .Include(v => v.Venta)
+                    .ThenInclude(v => v.Detalles)
+                .Include(v => v.Venta)
+                    .ThenInclude(v => v.Establishment)
+                .Where(v =>
+                    v.FechaRegistro >= inicioMes &&
+                    v.FechaRegistro < finMes &&
+                    !v.Venta.IsAnnulled
+                )
+                .ToListAsync();
+
+            var reporte = data
+                .Select(ve =>
+                {
+                    // ✅ misma lógica del Excel
+                    var detalle = ve.Venta.Detalles
+                        .FirstOrDefault(d =>
+                            d.Codigo == ve.productDefinition.Code);
+
+                    return new
+                    {
+                        ve.EmpleadoId,
+                        Empleado = ve.Empleado.FirstName + " " +
+                                   ve.Empleado.LastName,
+
+                        Establecimiento = ve.Venta.Establishment.Name,
+
+                        Monto = detalle?.PrecioUnitario ?? 0
+                    };
+                })
+                .GroupBy(x => new
+                {
+                    x.EmpleadoId,
+                    x.Empleado,
+                    x.Establecimiento
+                })
+                .Select(g => new ProductividadEmpleadoDto
+                {
+                    Empleado = g.Key.Empleado,
+                    Establecimiento = g.Key.Establecimiento,
+
+                    // ✅ cantidad de servicios
+                    Cantidad = g.Count(),
+
+                    // ✅ monto total generado
+                    Importe = g.Sum(x => x.Monto)
+                })
+                .OrderByDescending(x => x.Importe)
+                .ToList();
+
+            return reporte;
         }
 
         public async Task<List<ProductividadEmpleadoDto>> GetProductividadPersonal(
@@ -333,34 +441,85 @@ namespace FacturacionAPI.Services
             var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
             var finMes = inicioMes.AddMonths(1);
 
-            var data = await _context.ventaEmpleados
-                .Include(v => v.Empleado)
-                .Include(v => v.Venta)
-                    .ThenInclude(v => v.Detalles)
+            // =============================
+            // VENTAS
+            // =============================
+            var ventas = await _context.Ventas
+                .Include(v => v.Detalles)
                 .Where(v =>
-                    v.Venta.EstablishmentId == establishmentId &&
-                    v.FechaRegistro >= inicioMes &&
-                    v.FechaRegistro < finMes &&
-                    !v.Venta.IsAnnulled
-                )
+                    v.EstablishmentId == establishmentId &&
+                    v.FechaEmision >= inicioMes &&
+                    v.FechaEmision < finMes &&
+                    !v.IsAnnulled)
                 .ToListAsync();
 
-            var productividad = data
-                .GroupBy(v => v.Empleado)
+            var ventaIds = ventas.Select(v => v.Id).ToList();
+
+            // =============================
+            // EMPLEADOS PARTICIPANTES
+            // =============================
+            var ventaEmpleados = await _context.ventaEmpleados
+                .Include(x => x.Empleado)
+                .Include(x => x.productDefinition)
+                .Where(x => ventaIds.Contains(x.VentaId))
+                .AsNoTracking()
+                .ToListAsync();
+
+            // =============================
+            // CONSTRUIR PRODUCTIVIDAD
+            // =============================
+            var productividad = new List<(int empleadoId, string empleado, decimal monto)>();
+
+            foreach (var v in ventas)
+            {
+                foreach (var d in v.Detalles)
+                {
+                    var empleadosServicio = ventaEmpleados
+                        .Where(ve =>
+                            ve.VentaId == v.Id &&
+                            ve.productDefinition.Code == d.Codigo)
+                        .ToList();
+
+                    // =============================
+                    // SERVICIO CON EMPLEADOS
+                    // =============================
+                    if (empleadosServicio.Any())
+                    {
+                        var montoDividido =
+                            d.Total / empleadosServicio.Count;
+
+                        foreach (var ve in empleadosServicio)
+                        {
+                            productividad.Add((
+                                ve.EmpleadoId,
+                                ve.Empleado.FirstName + " " +
+                                ve.Empleado.LastName,
+                                montoDividido
+                            ));
+                        }
+                    }
+                }
+            }
+
+            // =============================
+            // AGRUPAR FINAL
+            // =============================
+            var reporte = productividad
+                .GroupBy(x => new { x.empleadoId, x.empleado })
                 .Select(g => new ProductividadEmpleadoDto
                 {
-                    Empleado = g.Key.FirstName + " " + g.Key.LastName,
-                    Cantidad = g.Count(), // número de servicios
-                    Importe = g.Sum(x =>
-                        x.Venta.Detalles
-                            //.Where(d => d.Codigo == x. .productDefinition.Code)
-                            .Sum(d => d.PrecioUnitario)
-                    )
+                    Empleado = g.Key.empleado,
+
+                    // servicios realizados
+                    Cantidad = g.Count(),
+
+                    // importe correcto dividido
+                    Importe = g.Sum(x => x.monto)
                 })
                 .OrderByDescending(x => x.Importe)
                 .ToList();
 
-            return productividad;
+            return reporte;
         }
 
         public async Task<List<ContribucionEstilistaDto>> GetContribucionEstilistaDia(

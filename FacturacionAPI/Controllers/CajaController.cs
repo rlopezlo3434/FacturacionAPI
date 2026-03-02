@@ -94,15 +94,17 @@ namespace FacturacionAPI.Controllers
             return Ok(cajas);
         }
 
-        [HttpGet("excel/{cajaId}")]
-        public async Task<IActionResult> DescargarExcel(int cajaId, [FromQuery] DateTime? fecha)
+        [HttpGet("excel")]
+        public async Task<IActionResult> DescargarExcel([FromQuery] DateTime? fecha)
         {
-            var excelData = await _service.GenerarExcelCaja(cajaId, fecha);
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
+            var excelData = await _service.GenerarExcelCaja(establishmentId,fecha);
 
             return File(
                 excelData,
                 "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"reporte_caja_{cajaId}.xlsx"
+                $"reporte_caja_Diario.xlsx"
             );
         }
 

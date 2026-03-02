@@ -194,17 +194,10 @@ namespace FacturacionAPI.Controllers
             var empleados = data.Select(x => x.Empleado).Distinct().OrderBy(e => e.FirstName).ToList();
             var productos = data.Select(x => x.productDefinition).Distinct().OrderBy(p => p.Description).ToList();
 
-            // 🔹 Rango del mes
-            //var hoy = DateTime.Today;
+            
             var inicioMes = new DateTime(fechas.Year, fechas.Month, 1);
             var finMes = inicioMes.AddMonths(1);
-
-            //int year = DateTime.Today.Year;
-            //int month = 11; // noviembre
-
-            //var inicioMes = new DateTime(year, month, 1);
-            //var finMes = inicioMes.AddMonths(1);
-
+         
             using var package = new ExcelPackage();
             var ws = package.Workbook.Worksheets.Add("Productividad");
 
@@ -376,18 +369,6 @@ namespace FacturacionAPI.Controllers
                     sum += montoEmpleadoMes2;   // acumulamos
 
                 }
-
-
-
-
-                //// Total monto del empleado en el mes
-                //decimal montoEmpleadoMes = data
-                //    .Where(x => x.EmpleadoId == emp.Id &&
-                //                x.FechaRegistro >= inicioMes &&
-                //                x.FechaRegistro < finMes)
-                //    .SelectMany(x => x.Venta.Detalles)
-                //    .Where(d => d != null)
-                //    .Sum(d => d.PrecioUnitario);
 
                 ws.Cells[row, colTotal].Value = sum == 0 ? "" : sum;
                 ws.Cells[row, colTotal].Style.Font.Bold = true;
@@ -695,10 +676,6 @@ namespace FacturacionAPI.Controllers
 
             foreach (var venta in ventas)
             {
-                var empleadosTexto = venta.Empleados != null && venta.Empleados.Any()
-                    ? string.Join(", ", venta.Empleados)
-                    : "SIN EMPLEADO";
-
                 foreach (var detalle in venta.Detalles)
                 {
                     ws.Cells[row, 1].Value = $"{venta.TipoComprobante} {venta.Serie}-{venta.Numero}";
@@ -709,7 +686,8 @@ namespace FacturacionAPI.Controllers
                     ws.Cells[row, 6].Value = venta.MetodoPago;
                     ws.Cells[row, 7].Value = venta.ClienteDocumento;
                     ws.Cells[row, 8].Value = venta.ClienteNombre;
-                    ws.Cells[row, 9].Value = "NIÑO";
+                    ws.Cells[row, 9].Value = detalle.Tipo;
+
                     ws.Cells[row, 10].Value = detalle.Codigo;
                     ws.Cells[row, 11].Value = detalle.Descripcion;
                     ws.Cells[row, 12].Value = detalle.Cantidad;
@@ -717,8 +695,11 @@ namespace FacturacionAPI.Controllers
                     ws.Cells[row, 14].Value = detalle.Subtotal;
                     ws.Cells[row, 15].Value = detalle.Igv;
                     ws.Cells[row, 16].Value = detalle.Total;
+
                     ws.Cells[row, 17].Value = venta.FechaEmision.ToString("HH:mm");
-                    ws.Cells[row, 18].Value = empleadosTexto;
+
+                    // ✅ EMPLEADO POR SERVICIO
+                    ws.Cells[row, 18].Value = detalle.Empleado;
 
                     row++;
                 }
@@ -804,10 +785,6 @@ namespace FacturacionAPI.Controllers
 
             foreach (var venta in ventas)
             {
-                var empleadosTexto = venta.Empleados != null && venta.Empleados.Any()
-                    ? string.Join(", ", venta.Empleados)
-                    : "SIN EMPLEADO";
-
                 foreach (var detalle in venta.Detalles)
                 {
                     ws.Cells[row, 1].Value = $"{venta.TipoComprobante} {venta.Serie}-{venta.Numero}";
@@ -818,7 +795,8 @@ namespace FacturacionAPI.Controllers
                     ws.Cells[row, 6].Value = venta.MetodoPago;
                     ws.Cells[row, 7].Value = venta.ClienteDocumento;
                     ws.Cells[row, 8].Value = venta.ClienteNombre;
-                    ws.Cells[row, 9].Value = "NIÑO";
+                    ws.Cells[row, 9].Value = detalle.Tipo;
+
                     ws.Cells[row, 10].Value = detalle.Codigo;
                     ws.Cells[row, 11].Value = detalle.Descripcion;
                     ws.Cells[row, 12].Value = detalle.Cantidad;
@@ -826,8 +804,11 @@ namespace FacturacionAPI.Controllers
                     ws.Cells[row, 14].Value = detalle.Subtotal;
                     ws.Cells[row, 15].Value = detalle.Igv;
                     ws.Cells[row, 16].Value = detalle.Total;
+
                     ws.Cells[row, 17].Value = venta.FechaEmision.ToString("HH:mm");
-                    ws.Cells[row, 18].Value = empleadosTexto;
+
+                    // ✅ EMPLEADO POR SERVICIO
+                    ws.Cells[row, 18].Value = detalle.Empleado;
 
                     row++;
                 }

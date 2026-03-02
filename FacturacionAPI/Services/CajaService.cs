@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml.Style;
 using OfficeOpenXml;
 using System.Drawing;
+using System;
 
 namespace FacturacionAPI.Services
 {
@@ -226,7 +227,7 @@ namespace FacturacionAPI.Services
                 .ToListAsync();
         }
 
-        public async Task<byte[]> GenerarExcelCaja(int cajaId, DateTime? fecha)
+        public async Task<byte[]> GenerarExcelCaja(int establishmentId, DateTime? fecha)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
@@ -235,20 +236,26 @@ namespace FacturacionAPI.Services
             var finDia = dia.AddDays(1);
 
             var caja = await _context.CajaAperturas
-                .Include(c => c.Movimientos)
-                    .ThenInclude(m => m.Venta)
-                .Include(c => c.Cierre)
-                .Include(c => c.Establishment)
-                .FirstOrDefaultAsync(c => c.FechaApertura >= inicioDia &&
-            c.FechaApertura < finDia);
+                        .Include(c => c.Movimientos
+                            .Where(m =>
+                                m.FechaRegistro >= inicioDia &&
+                                m.FechaRegistro < finDia))
+                            .ThenInclude(m => m.Venta)
+                        .Include(c => c.Cierre)
+                        .Include(c => c.Establishment)
+                        .FirstOrDefaultAsync(c =>
+                            c.EstablishmentId == establishmentId);
 
             if (caja == null)
                 throw new Exception("Caja no encontrada.");
 
+            // ===============================
+            // MOVIMIENTOS DEL DIA
+            // ===============================
             var movimientos = caja.Movimientos
-                .Where(m => m.Venta != null )
                 .OrderBy(m => m.FechaRegistro)
                 .ToList();
+
 
             decimal ingresos = movimientos.Where(x => x.Tipo == "INGRESO").Sum(x => x.Monto);
             decimal egresos = movimientos.Where(x => x.Tipo == "EGRESO").Sum(x => x.Monto);
@@ -345,15 +352,27 @@ namespace FacturacionAPI.Services
             }
         }
 
-        public async Task<byte[]> GenerarReporteMensual(int establecimientoId, int year, int month)
+        public async Task<byte[]> GenerarReporteMensual(
+    int establecimientoId,
+    int year,
+    int month)
         {
             ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
 
+            var inicioMes = new DateTime(year, month, 1);
+            var finMes = inicioMes.AddMonths(1);
+
+            // =====================================
+            // CAJAS CON MOVIMIENTOS DEL MES
+            // =====================================
             var aperturas = await _context.CajaAperturas
-                .Include(c => c.Movimientos)
-                .Where(c => c.EstablishmentId == establecimientoId &&
-                            c.FechaApertura.Year == year &&
-                            c.FechaApertura.Month == month)
+                .Include(c => c.Movimientos
+                    .Where(m =>
+                        m.FechaRegistro >= inicioMes &&
+                        m.FechaRegistro < finMes &&
+                        (m.Venta == null || !m.Venta.IsAnnulled)))
+                    .ThenInclude(m => m.Venta)
+                .Where(c => c.EstablishmentId == establecimientoId)
                 .ToListAsync();
 
             using var package = new ExcelPackage();
@@ -361,51 +380,68 @@ namespace FacturacionAPI.Services
 
             int row = 1;
 
-            ws.Cells[row++, 1].Value = $"REPORTE MENSUAL DE CAJA - {month}/{year}";
+            ws.Cells[row++, 1].Value =
+                $"REPORTE MENSUAL DE CAJA - {inicioMes:MMMM yyyy}";
             row++;
 
+            // =============================
+            // CABECERA
+            // =============================
             ws.Cells[row, 1].Value = "Fecha";
             ws.Cells[row, 2].Value = "Tipo";
             ws.Cells[row, 3].Value = "Monto";
             ws.Cells[row, 4].Value = "Motivo";
-            //ws.Cells[row, 5].Value = "Tipo Venta";
+
+            ws.Cells[row, 1, row, 4].Style.Font.Bold = true;
 
             row++;
 
             decimal totalIngresos = 0;
             decimal totalEgresos = 0;
 
-            foreach (var apertura in aperturas)
+            // =====================================
+            // MOVIMIENTOS
+            // =====================================
+            var movimientos = aperturas
+                .SelectMany(a => a.Movimientos)
+                .OrderBy(m => m.FechaRegistro)
+                .ToList();
+
+            foreach (var mov in movimientos)
             {
-                foreach (var mov in apertura.Movimientos.OrderBy(x => x.FechaRegistro))
-                {
-                    ws.Cells[row, 1].Value = mov.FechaRegistro.ToString("yyyy-MM-dd");
-                    ws.Cells[row, 2].Value = mov.Tipo;
-                    ws.Cells[row, 3].Value = mov.Monto;
-                    ws.Cells[row, 4].Value = mov.Motivo;
-                    //ws.Cells[row, 5].Value = mov.Venta.MetodoPago;
+                ws.Cells[row, 1].Value =
+                    mov.FechaRegistro.ToString("yyyy-MM-dd HH:mm");
 
+                ws.Cells[row, 2].Value = mov.Tipo;
+                ws.Cells[row, 3].Value = mov.Monto;
+                ws.Cells[row, 4].Value = mov.Motivo;
 
-                    if (mov.Tipo == "INGRESO")
-                        totalIngresos += mov.Monto;
-                    else
-                        totalEgresos += mov.Monto;
+                if (mov.Tipo == "INGRESO")
+                    totalIngresos += mov.Monto;
+                else
+                    totalEgresos += mov.Monto;
 
-                    row++;
-                }
+                row++;
             }
 
+            // =====================================
+            // TOTALES
+            // =====================================
             row++;
+
             ws.Cells[row, 2].Value = "TOTAL INGRESOS:";
             ws.Cells[row, 3].Value = totalIngresos;
+
             row++;
 
             ws.Cells[row, 2].Value = "TOTAL EGRESOS:";
             ws.Cells[row, 3].Value = totalEgresos;
+
             row++;
 
             ws.Cells[row, 2].Value = "SALDO TOTAL:";
-            ws.Cells[row, 3].Value = totalIngresos - totalEgresos;
+            ws.Cells[row, 3].Value =
+                totalIngresos - totalEgresos;
 
             ws.Cells.AutoFitColumns();
 
