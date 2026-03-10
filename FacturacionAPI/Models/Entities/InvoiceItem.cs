@@ -29,5 +29,9 @@ namespace FacturacionAPI.Models.Entities
         public decimal Discount { get; set; }
 
         public decimal TotalPrice { get; set; }
+
+        public bool Invoiced { get; set; } = false;
+
+
     }
 }

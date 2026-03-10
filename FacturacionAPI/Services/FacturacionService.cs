@@ -434,7 +434,22 @@ namespace FacturacionAPI.Services
             };
 
             _context.Ventas.Add(venta);
-           
+
+            var invoiceItemIds = request.items
+                .Where(i => i.id != null)
+                .Select(i => i.id)
+                .ToList();
+
+            var invoiceItems = await _context.InvoicesItem
+                .Where(ii => invoiceItemIds.Contains(ii.Id))
+                .ToListAsync();
+
+            foreach (var item in invoiceItems)
+            {
+                item.Invoiced = true;
+            }
+
+
             await _context.SaveChangesAsync();
          
             try
@@ -487,7 +502,8 @@ namespace FacturacionAPI.Services
             var fin = fecha.Date.AddDays(1);
 
             var lista = await _context.Ventas
-               .Where(v => v.EstablishmentId == establishmentId && v.FechaEmision >= inicio && v.FechaEmision < fin) // Factura o Boleta
+               //.Where(v => v.EstablishmentId == establishmentId && v.FechaEmision >= inicio && v.FechaEmision < fin) // Factura o Boleta
+               .Where(v => v.EstablishmentId == establishmentId) // Factura o Boleta
                .OrderByDescending(v => v.FechaEmision)
                .Select(v => new
                {
@@ -498,7 +514,9 @@ namespace FacturacionAPI.Services
                    Total = v.Total,
                    Fecha = v.FechaEmision.ToString("dd/MM/yyyy HH:mm"),
                    LinkPdf = v.EnlacePdf, // Campo devuelto por Nubefact (guárdalo al registrar)
-                   Anulado = v.IsAnnulled
+                   Anulado = v.IsAnnulled,
+                   ClienteNombre = v.ClienteNombre,
+                   ClienteNumero = v.ClienteDocumento
                })
                .ToListAsync();
             return lista;

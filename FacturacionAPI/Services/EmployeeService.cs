@@ -29,7 +29,7 @@ namespace FacturacionAPI.Services
                     Username = e.Username,
                     RoleName = e.Role.Name,
                     RoleCode = e.Role.Code,
-                    Gender = e.Gender.ToString() == "M" ? "Hombre" : "Mujer",
+                    Gender = e.Gender.ToString() == "Male" ? "Hombre" : "Mujer",
                     TypeGender = e.Gender.ToString(),
                     DocumentIdentificationType = e.DocumentIdentificationType.ToString(),
                     IsActive = e.IsActive
@@ -66,7 +66,8 @@ namespace FacturacionAPI.Services
                 employee.DocumentIdentificationNumber = emp.DocumentIdentificationNumber;
 
             if (!string.IsNullOrEmpty(emp.DocumentIdentificationType))
-                employee.DocumentIdentificationType = Enum.Parse<DocumentIdentificationType>(emp.DocumentIdentificationType);
+                employee.DocumentIdentificationType =
+                    Enum.Parse<DocumentIdentificationType>(emp.DocumentIdentificationType, true);
 
             if (!string.IsNullOrEmpty(emp.Email))
                 employee.Email = emp.Email;
@@ -75,17 +76,24 @@ namespace FacturacionAPI.Services
                 employee.PasswordHash = BCrypt.Net.BCrypt.HashPassword(emp.Password);
 
             if (!string.IsNullOrEmpty(emp.Gender))
-                employee.Gender = Enum.Parse<GenderEnum>(emp.Gender);
+            {
+                employee.Gender = emp.Gender switch
+                {
+                    "M" => GenderEnum.Male,
+                    "F" => GenderEnum.Female,
+                    _ => throw new Exception("Género inválido")
+                };
+            }
 
             if (!string.IsNullOrEmpty(emp.RoleCode))
             {
                 var newRole = await _context.Role.FirstOrDefaultAsync(r => r.Code == emp.RoleCode);
                 if (newRole == null)
                     return (false, "Rol no encontrado");
+
                 employee.RoleId = newRole.Id;
             }
 
-            _context.Employee.Update(employee);
             await _context.SaveChangesAsync();
 
             return (true, "Empleado actualizado correctamente");
