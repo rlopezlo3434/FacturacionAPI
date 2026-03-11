@@ -13,4 +13,10 @@ namespace FacturacionAPI.Models.Entities
         [Required]
         public string Number { get; set; }
     }
+
+    public class Numbers
+    {
+        public string Number { get; set; }
+
+    }
 }

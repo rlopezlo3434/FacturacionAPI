@@ -311,28 +311,43 @@ namespace FacturacionAPI.Services
     int establishmentId,
     DateTime fecha)
         {
-            // ---------------------------
-            // MES ACTUAL
-            // ---------------------------
+            var hoy = DateTime.Today;
+
             var inicioMesActual = new DateTime(fecha.Year, fecha.Month, 1);
-            var finPeriodoActual = fecha.Date.AddDays(1);
+            DateTime finPeriodoActual;
 
-            // ---------------------------
-            // MES ANTERIOR (MISMO DÍA)
-            // ---------------------------
             var inicioMesAnterior = inicioMesActual.AddMonths(-1);
+            DateTime finPeriodoAnterior;
 
-            // evitar problemas Febrero / meses cortos
-            var diasMesAnterior = DateTime.DaysInMonth(
-                inicioMesAnterior.Year,
-                inicioMesAnterior.Month);
+            bool esMesActual = fecha.Month == hoy.Month && fecha.Year == hoy.Year;
 
-            var diaComparacion = Math.Min(fecha.Day, diasMesAnterior);
+            if (esMesActual)
+            {
+                // ---------------------------
+                // MES ACTUAL → comparar hasta hoy
+                // ---------------------------
+                finPeriodoActual = fecha.Date.AddDays(1);
 
-            var finPeriodoAnterior = new DateTime(
-                inicioMesAnterior.Year,
-                inicioMesAnterior.Month,
-                diaComparacion).AddDays(1); ;
+                var diasMesAnterior = DateTime.DaysInMonth(
+                    inicioMesAnterior.Year,
+                    inicioMesAnterior.Month);
+
+                var diaComparacion = Math.Min(fecha.Day, diasMesAnterior);
+
+                finPeriodoAnterior = new DateTime(
+                    inicioMesAnterior.Year,
+                    inicioMesAnterior.Month,
+                    diaComparacion).AddDays(1);
+            }
+            else
+            {
+                // ---------------------------
+                // MES PASADO → comparar mes completo
+                // ---------------------------
+                finPeriodoActual = inicioMesActual.AddMonths(1);
+
+                finPeriodoAnterior = inicioMesAnterior.AddMonths(1);
+            }
 
             // ---------------------------
             // TOTAL MES ACTUAL

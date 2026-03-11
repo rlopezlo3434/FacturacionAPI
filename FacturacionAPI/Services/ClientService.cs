@@ -144,7 +144,7 @@ namespace FacturacionAPI.Services
             return (true, "Cliente creado correctamente.");
         }
 
-        public async Task<(bool Success, string Message)> CreateClientNumber(int id, ClientNumbers dto)
+        public async Task<(bool Success, string Message)> CreateClientNumber(int id, Numbers dto)
         {
             var exists = await _context.ClientNumbers.AnyAsync(c =>
                 c.Number == dto.Number);
@@ -162,6 +162,20 @@ namespace FacturacionAPI.Services
             await _context.SaveChangesAsync();
 
             return (true, "Numero agregado correctamente.");
+        }
+
+        public async Task<(bool Success, string Message)> DeleteClientNumber(int clientId, string number)
+        {
+            var record = await _context.ClientNumbers
+                .FirstOrDefaultAsync(x => x.ClientId == clientId && x.Number == number);
+
+            if (record == null)
+                return (false, "Número no encontrado.");
+
+            _context.ClientNumbers.Remove(record);
+            await _context.SaveChangesAsync();
+
+            return (true, "Número eliminado correctamente.");
         }
 
         public async Task<(bool Success, string Message)> CreateChildrenClientAsync(ChildrenDto dto)

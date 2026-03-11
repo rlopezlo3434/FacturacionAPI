@@ -51,12 +51,24 @@ namespace FacturacionAPI.Controllers
 
         [Authorize]
         [HttpPost("clientNumber/{id}")]
-        public async Task<IActionResult> CreateClientNumber(int id, [FromBody] ClientNumbers dto)
+        public async Task<IActionResult> CreateClientNumber(int id, [FromBody] Numbers dto)
         {
             if (dto == null)
                 return BadRequest("Datos inválidos.");
 
             var result = await _clientService.CreateClientNumber(id, dto);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
+        [Authorize]
+        [HttpDelete("clientNumber/{clientId}/{number}")]
+        public async Task<IActionResult> DeleteClientNumber(int clientId, string number)
+        {
+            var result = await _clientService.DeleteClientNumber(clientId, number);
 
             if (!result.Success)
                 return BadRequest(new { success = false, message = result.Message });
