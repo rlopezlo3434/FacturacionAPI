@@ -22,5 +22,10 @@ namespace FacturacionAPI.Models.Entities
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public List<WorkOrderItem> Items { get; set; } = new();
+
+        // 🔹 RELACIONES NUEVAS
+        public List<WorkOrderEmployee> WorkOrderEmployees { get; set; } = new();
+
+        public List<WorkOrderSupplier> WorkOrderSuppliers { get; set; } = new();
     }
 }

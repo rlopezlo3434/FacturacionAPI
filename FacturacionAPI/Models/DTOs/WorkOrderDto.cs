@@ -49,6 +49,9 @@
         public ClientMiniDto Client { get; set; } = null!;
 
         public List<WorkOrderItemDto> Items { get; set; } = new();
+
+        public List<EmployeeMiniDto> Employees { get; set; } = new();
+        public List<ProveedorMiniDto> Proveedores { get; set; } = new();
     }
 
     public class WorkOrderItemDto
@@ -65,6 +68,8 @@
     public class WorkOrderUpdateItemsDto
     {
         public int WorkOrderId { get; set; }
+        public List<int> EmpleadosIds { get; set; }
+        public List<int> ProveedoresIds { get; set; }
         public List<WorkOrderItemUpdateDto> Items { get; set; } = new();
     }
 
@@ -75,4 +80,16 @@
         public string? Observations { get; set; }
     }
 
+    public class EmployeeMiniDto
+    {
+        public int Id { get; set; }
+        public string Names { get; set; }
+    }
+
+    public class ProveedorMiniDto
+    {
+        public int Id { get; set; }
+        public string Ruc { get; set; }
+        public string RazonSocial { get; set; }
+    }
 }

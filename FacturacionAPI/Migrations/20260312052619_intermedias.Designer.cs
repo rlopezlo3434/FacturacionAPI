@@ -4,6 +4,7 @@ using FacturacionAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    partial class SistemaVentasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260312052619_intermedias")]
+    partial class intermedias
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -777,62 +779,6 @@ namespace FacturacionAPI.Migrations
                     b.ToTable("Role");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.ServicePackage", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("ServicePackage");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.ServicePackageItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<int>("ItemType")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ProductId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ServiceMasterId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ServicePackageId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ProductId");
-
-                    b.HasIndex("ServiceMasterId");
-
-                    b.HasIndex("ServicePackageId");
-
-                    b.ToTable("ServicePackageItem");
-                });
-
             modelBuilder.Entity("FacturacionAPI.Models.Entities.ServicesMaster", b =>
                 {
                     b.Property<int>("Id")
@@ -1318,18 +1264,6 @@ namespace FacturacionAPI.Migrations
                     b.Property<string>("CodigoHash")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<bool>("Detraccion")
-                        .HasColumnType("bit");
-
-                    b.Property<decimal?>("DetraccionMonto")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("DetraccionPorcentaje")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("DetraccionTipo")
-                        .HasColumnType("int");
-
                     b.Property<string>("EnlaceCdr")
                         .HasColumnType("nvarchar(max)");
 
@@ -1783,29 +1717,6 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Establishment");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.ServicePackageItem", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.Product", "Product")
-                        .WithMany()
-                        .HasForeignKey("ProductId");
-
-                    b.HasOne("FacturacionAPI.Models.Entities.ServicesMaster", "ServiceMaster")
-                        .WithMany()
-                        .HasForeignKey("ServiceMasterId");
-
-                    b.HasOne("FacturacionAPI.Models.Entities.ServicePackage", "ServicePackage")
-                        .WithMany("Items")
-                        .HasForeignKey("ServicePackageId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Product");
-
-                    b.Navigation("ServiceMaster");
-
-                    b.Navigation("ServicePackage");
-                });
-
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Stock", b =>
                 {
                     b.HasOne("FacturacionAPI.Models.Entities.Item", "Item")
@@ -2038,7 +1949,7 @@ namespace FacturacionAPI.Migrations
                         .IsRequired();
 
                     b.HasOne("FacturacionAPI.Models.Entities.WorkOrder", "WorkOrder")
-                        .WithMany("WorkOrderEmployees")
+                        .WithMany()
                         .HasForeignKey("WorkOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2088,7 +1999,7 @@ namespace FacturacionAPI.Migrations
                         .IsRequired();
 
                     b.HasOne("FacturacionAPI.Models.Entities.WorkOrder", "WorkOrder")
-                        .WithMany("WorkOrderSuppliers")
+                        .WithMany()
                         .HasForeignKey("WorkOrderId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -2124,11 +2035,6 @@ namespace FacturacionAPI.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.ServicePackage", b =>
-                {
-                    b.Navigation("Items");
-                });
-
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Vehicle", b =>
                 {
                     b.Navigation("Owners");
@@ -2161,10 +2067,6 @@ namespace FacturacionAPI.Migrations
             modelBuilder.Entity("FacturacionAPI.Models.Entities.WorkOrder", b =>
                 {
                     b.Navigation("Items");
-
-                    b.Navigation("WorkOrderEmployees");
-
-                    b.Navigation("WorkOrderSuppliers");
                 });
 #pragma warning restore 612, 618
         }

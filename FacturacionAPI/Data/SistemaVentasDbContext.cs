@@ -21,8 +21,9 @@ namespace FacturacionAPI.Data
         public DbSet<WorkOrder> WorkOrders { get; set; }
         public DbSet<WorkOrderItem> WorkOrderItems { get; set; }
         public DbSet<VehicleIntakeDiagram> VehicleIntakeDiagram { get; set; }
-
-
+        public DbSet<WorkOrderEmployee> WorkOrderEmployees { get; set; }
+        public DbSet<WorkOrderSupplier> WorkOrderSuppliers { get; set; }
+        public DbSet<Proveedor> Proveedores { get; set; }
         public DbSet<Companie> Companie { get; set; }
         public DbSet<Establishment> Establishment { get; set; }
         public DbSet<Role> Role { get; set; }
@@ -32,6 +33,8 @@ namespace FacturacionAPI.Data
         public DbSet<ClientAddress> ClientAddresses { get; set; }
         public DbSet<UnitMeasure> UnitMeasure { get; set; }
         public DbSet<VehicleIntakeImage> VehicleIntakeImages { get; set; }
+        public DbSet<ServicePackage> ServicePackage { get; set; }
+        public DbSet<ServicePackageItem> ServicePackageItem { get; set; }
 
         public DbSet<VehicleBrand> VehicleBrands { get; set; }
         public DbSet<VehicleModel> VehicleModels { get; set; }

@@ -253,6 +253,8 @@ namespace FacturacionAPI.Services
                     Observaciones = request.observaciones,
                     CodigoHash = nubefactResp.GetProperty("codigo_hash").GetString(),
                     EnlacePdf = nubefactResp.GetProperty("enlace_del_pdf").GetString(),
+                    EnlaceXml = nubefactResp.GetProperty("enlace_del_xml").GetString(),
+                    EnlaceCdr = nubefactResp.GetProperty("enlace_del_cdr").GetString(),
                     FechaEmision = DateTime.Now,
                     MetodoPago = request.metodo_pago.ToString() == "CONTADO" ? request.metodo_pago.Value : MetodoPago.Efectivo,
                     EstablishmentId = establishmentId,
@@ -393,6 +395,7 @@ namespace FacturacionAPI.Services
             decimal total = Math.Round(items.Sum(x => (decimal)x.total), 2);
             decimal totalGravada = Math.Round(total / FACTOR_IGV, 2);
             decimal totalIgv = Math.Round(total - totalGravada, 2);
+            decimal? detraccionMonto = null;
 
             // 🔹 Generar correlativo falso para pruebas
             var correlativo = await _context.Ventas
@@ -402,6 +405,12 @@ namespace FacturacionAPI.Services
                 .FirstOrDefaultAsync();
 
             var nuevoCorrelativo = correlativo == 0 ? 1 : correlativo + 1;
+
+            if (request.detraccion)
+            {
+                detraccionMonto = request.detraccion_total ??
+                    Math.Round(total * (request.detraccion_porcentaje ?? 12) / 100, 2);
+            }
 
             // 🔹 Crear venta SIN enviar a SUNAT
             var venta = new Venta
@@ -417,6 +426,8 @@ namespace FacturacionAPI.Services
                 Observaciones = request.observaciones,
                 CodigoHash = "HASH_FAKE_PARA_PRUEBAS",
                 EnlacePdf = "PDF_FAKE_PARA_PRUEBAS",
+                EnlaceXml = "XML_FAKE_PARA_PRUEBAS",
+                EnlaceCdr = "CDR_FAKE_PARA_PRUEBAS",
                 FechaEmision = DateTime.Now,
                 MetodoPago = request.metodo_pago.ToString() == "CONTADO" ? request.metodo_pago.Value : MetodoPago.Efectivo,
                 EstablishmentId = establishmentId,
@@ -674,7 +685,8 @@ namespace FacturacionAPI.Services
                                          Discount = i.Discount,
                                          UnitPrice = i.UnitPrice,
                                          SubTotal = i.TotalPrice,
-                                         Selected = false
+                                         Selected = false,
+                                         Invoiced = i.Invoiced
                                      })
                                      .ToListAsync();
             return items;

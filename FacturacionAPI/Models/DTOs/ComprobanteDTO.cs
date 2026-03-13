@@ -16,6 +16,10 @@ namespace FacturacionAPI.Models.DTOs
         public string? cliente_tipo_documento { get; set; }
         public MetodoPago? metodo_pago { get; set; }
         public DateTime? fecha_emision { get; set; }
+        public bool detraccion { get; set; }
+        public int? detraccion_tipo { get; set; }
+        public decimal? detraccion_porcentaje { get; set; }
+        public decimal? detraccion_total { get; set; }
 
     }
     public class VentaItem

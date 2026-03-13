@@ -20,5 +20,7 @@
         public decimal SubTotal { get; set; }
 
         public bool Selected { get; set; } = false;
+
+        public bool Invoiced { get; set; } = false;
     }
 }

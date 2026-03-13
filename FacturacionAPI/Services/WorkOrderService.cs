@@ -193,9 +193,28 @@ namespace FacturacionAPI.Services
                 .Include(x => x.VehicleIntake).ThenInclude(i => i.Vehicle).ThenInclude(v => v.Brand)
                 .Include(x => x.VehicleIntake).ThenInclude(i => i.Vehicle).ThenInclude(v => v.Model)
                 .Include(x => x.VehicleIntake).ThenInclude(i => i.Client)
+                .Include(x => x.WorkOrderEmployees).ThenInclude(x => x.Employee)
+                .Include(x => x.WorkOrderSuppliers).ThenInclude(x => x.Proveedor)
                 .FirstOrDefaultAsync(x => x.Id == id && x.IsActive);
 
             if (wo == null) return null;
+
+            var empleados = wo.WorkOrderEmployees
+                .Select(x => new EmployeeMiniDto
+                {
+                    Id = x.Employee.Id,
+                    Names = x.Employee.Names
+                })
+                .ToList();
+
+            var proveedores = wo.WorkOrderSuppliers
+                .Select(x => new ProveedorMiniDto
+                {
+                    Id = x.Proveedor.Id,
+                    Ruc = x.Proveedor.Ruc,
+                    RazonSocial = x.Proveedor.RazonSocial
+                })
+                .ToList();
 
             // ✅ ITEMS DE OT = ITEMS APROBADOS DE PRESUPUESTOS
             var items = await _context.WorkOrderItems
@@ -244,7 +263,10 @@ namespace FacturacionAPI.Services
                     Names = wo.VehicleIntake.Client.Names
                 },
 
-                Items = items
+                Items = items,
+                Employees = empleados,
+
+                Proveedores = proveedores
             };
         }
 
@@ -269,6 +291,45 @@ namespace FacturacionAPI.Services
                 dbItem.IsCompleted = item.IsCompleted;
                 dbItem.Observations = item.Observations;
             }
+
+            var empleadosActuales = await _context.WorkOrderEmployees
+                                                  .Where(x => x.WorkOrderId == dto.WorkOrderId)
+                                                  .ToListAsync();
+
+            _context.WorkOrderEmployees.RemoveRange(empleadosActuales);
+
+            if (dto.EmpleadosIds != null && dto.EmpleadosIds.Any())
+            {
+                var nuevosEmpleados = dto.EmpleadosIds.Select(empId => new WorkOrderEmployee
+                {
+                    WorkOrderId = dto.WorkOrderId,
+                    EmployeeId = empId
+                });
+
+                await _context.WorkOrderEmployees.AddRangeAsync(nuevosEmpleados);
+            }
+
+            // =========================
+            // PROVEEDORES
+            // =========================
+
+            var proveedoresActuales = await _context.WorkOrderSuppliers
+                                                    .Where(x => x.WorkOrderId == dto.WorkOrderId)
+                                                    .ToListAsync();
+
+            _context.WorkOrderSuppliers.RemoveRange(proveedoresActuales);
+
+            if (dto.ProveedoresIds != null && dto.ProveedoresIds.Any())
+            {
+                var nuevosProveedores = dto.ProveedoresIds.Select(provId => new WorkOrderSupplier
+                {
+                    WorkOrderId = dto.WorkOrderId,
+                    ProveedorId = provId
+                });
+
+                await _context.WorkOrderSuppliers.AddRangeAsync(nuevosProveedores);
+            }
+
 
             // ✅ opcional: cerrar OT si todos están completos
             if (wo.Items.Any() && wo.Items.All(x => x.IsCompleted))

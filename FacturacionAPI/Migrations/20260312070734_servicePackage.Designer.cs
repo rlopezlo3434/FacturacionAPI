@@ -4,6 +4,7 @@ using FacturacionAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    partial class SistemaVentasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260312070734_servicePackage")]
+    partial class servicePackage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1317,18 +1319,6 @@ namespace FacturacionAPI.Migrations
 
                     b.Property<string>("CodigoHash")
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("Detraccion")
-                        .HasColumnType("bit");
-
-                    b.Property<decimal?>("DetraccionMonto")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal?>("DetraccionPorcentaje")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int?>("DetraccionTipo")
-                        .HasColumnType("int");
 
                     b.Property<string>("EnlaceCdr")
                         .HasColumnType("nvarchar(max)");
