@@ -235,32 +235,41 @@ namespace FacturacionAPI.Services
             var inicioDia = dia;
             var finDia = dia.AddDays(1);
 
-            var caja = await _context.CajaAperturas
-                        .Include(c => c.Movimientos
-                            .Where(m =>
-                                m.FechaRegistro >= inicioDia &&
-                                m.FechaRegistro < finDia))
-                            .ThenInclude(m => m.Venta)
-                        .Include(c => c.Cierre)
-                        .Include(c => c.Establishment)
-                        .FirstOrDefaultAsync(c =>
-                            c.EstablishmentId == establishmentId);
-
-            if (caja == null)
-                throw new Exception("Caja no encontrada.");
-
-            // ===============================
-            // MOVIMIENTOS DEL DIA
-            // ===============================
-            var movimientos = caja.Movimientos
+            var movimientos = await _context.CajaMovimientos
+                .Where(m =>
+                    m.FechaRegistro >= inicioDia &&
+                    m.FechaRegistro < finDia &&
+                    m.CajaApertura.EstablishmentId == establishmentId)
+                .Include(m => m.Venta)
+                .Include(m => m.CajaApertura)
+                    .ThenInclude(c => c.Cierre)
+                .Include(m => m.CajaApertura)
+                    .ThenInclude(c => c.Establishment)
                 .OrderBy(m => m.FechaRegistro)
-                .ToList();
+                .ToListAsync();
 
+            if (!movimientos.Any())
+                throw new Exception("No se encontraron movimientos para ese día.");
 
-            decimal ingresos = movimientos.Where(x => x.Tipo == "INGRESO").Sum(x => x.Monto);
-            decimal egresos = movimientos.Where(x => x.Tipo == "EGRESO").Sum(x => x.Monto);
+            var caja = movimientos.First().CajaApertura;
 
-            decimal efectivoCalculado = caja.MontoApertura + ingresos - egresos;
+            // ===============================
+            // CALCULOS
+            // ===============================
+
+            decimal ventas = movimientos
+                .Where(x => x.VentaId != null)
+                .Sum(x => x.Monto);
+
+            decimal ingresos = movimientos
+                .Where(x => x.Tipo == "INGRESO")
+                .Sum(x => x.Monto);
+
+            decimal egresos = movimientos
+                .Where(x => x.Tipo == "EGRESO")
+                .Sum(x => x.Monto);
+
+            decimal efectivoCalculado = caja.MontoApertura + ventas + ingresos - egresos;
 
             using (var package = new ExcelPackage())
             {
@@ -268,7 +277,10 @@ namespace FacturacionAPI.Services
 
                 int row = 1;
 
+                // ===============================
                 // CABECERA
+                // ===============================
+
                 ws.Cells[row, 1].Value = "REPORTE DE CAJA";
                 ws.Cells[row, 1].Style.Font.Size = 16;
                 ws.Cells[row, 1].Style.Font.Bold = true;
@@ -277,7 +289,10 @@ namespace FacturacionAPI.Services
 
                 row += 2;
 
+                // ===============================
                 // DATOS DE APERTURA
+                // ===============================
+
                 ws.Cells[row, 1].Value = "Caja ID:";
                 ws.Cells[row, 2].Value = caja.Id;
 
@@ -292,7 +307,10 @@ namespace FacturacionAPI.Services
 
                 row += 5;
 
-                // TABLA DE MOVIMIENTOS
+                // ===============================
+                // TABLA MOVIMIENTOS
+                // ===============================
+
                 ws.Cells[row, 1].Value = "Tipo";
                 ws.Cells[row, 2].Value = "Monto";
                 ws.Cells[row, 3].Value = "Fecha";
@@ -324,34 +342,39 @@ namespace FacturacionAPI.Services
 
                 row += 2;
 
+                // ===============================
                 // RESUMEN
-                ws.Cells[row, 1].Value = "INGRESOS:";
-                ws.Cells[row, 2].Value = (double)ingresos;
+                // ===============================
 
-                ws.Cells[row + 1, 1].Value = "EGRESOS:";
-                ws.Cells[row + 1, 2].Value = (double)egresos;
+                ws.Cells[row, 1].Value = "VENTAS:";
+                ws.Cells[row, 2].Value = (double)ventas;
 
-                ws.Cells[row + 2, 1].Value = "EFECTIVO CALCULADO:";
-                ws.Cells[row + 2, 2].Value = (double)efectivoCalculado;
+                ws.Cells[row + 1, 1].Value = "INGRESOS:";
+                ws.Cells[row + 1, 2].Value = (double)ingresos;
 
-                if (caja.Cierre != null)
-                {
-                    ws.Cells[row + 3, 1].Value = "EFECTIVO CONTADO:";
-                    ws.Cells[row + 3, 2].Value = (double)caja.Cierre.EfectivoContado;
+                ws.Cells[row + 2, 1].Value = "EGRESOS:";
+                ws.Cells[row + 2, 2].Value = (double)egresos;
 
-                    ws.Cells[row + 4, 1].Value = "DIFERENCIA:";
-                    ws.Cells[row + 4, 2].Value = (double)caja.Cierre.Diferencia;
+                ws.Cells[row + 3, 1].Value = "EFECTIVO CALCULADO:";
+                ws.Cells[row + 3, 2].Value = (double)caja.MontoApertura + (double)ingresos - (double)egresos;
 
-                    ws.Cells[row + 5, 1].Value = "Observaciones:";
-                    ws.Cells[row + 5, 2].Value = caja.Cierre.Observaciones;
-                }
+                //if (caja.Cierre != null)
+                //{
+                //    ws.Cells[row + 4, 1].Value = "EFECTIVO CONTADO:";
+                //    ws.Cells[row + 4, 2].Value = (double)caja.Cierre.EfectivoContado;
+
+                //    ws.Cells[row + 5, 1].Value = "DIFERENCIA:";
+                //    ws.Cells[row + 5, 2].Value = (double)caja.Cierre.Diferencia;
+
+                //    ws.Cells[row + 6, 1].Value = "Observaciones:";
+                //    ws.Cells[row + 6, 2].Value = caja.Cierre.Observaciones;
+                //}
 
                 ws.Cells.AutoFitColumns();
 
                 return package.GetAsByteArray();
             }
         }
-
         public async Task<byte[]> GenerarReporteMensual(
     int establecimientoId,
     int year,

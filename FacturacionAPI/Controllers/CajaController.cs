@@ -99,7 +99,7 @@ namespace FacturacionAPI.Controllers
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            var excelData = await _service.GenerarExcelCaja(establishmentId,fecha);
+            var excelData = await _service.GenerarExcelCaja(establishmentId, fecha);
 
             return File(
                 excelData,
