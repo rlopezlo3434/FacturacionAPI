@@ -5,7 +5,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using System.Text.Json.Serialization;
-
+using DinkToPdf;
+using DinkToPdf.Contracts;
+using FacturacionAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -52,11 +54,33 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll",
         policy =>
         {
-            policy.SetIsOriginAllowed(_ => true)
+            policy.AllowAnyOrigin()
                   .AllowAnyHeader()
                   .AllowAnyMethod();
         });
 });
+
+var context = new CustomAssemblyLoadContext();
+
+//var dllPath = Path.Combine(
+//    Directory.GetCurrentDirectory(),
+//    "wkhtmltopdf",
+//    "libwkhtmltox.dll"
+//);
+
+var env = builder.Environment;
+var dllPath = Path.Combine(
+    env.ContentRootPath,
+    "wwwroot",
+    "wkhtmltopdf",
+    "libwkhtmltox.dll"
+);
+
+context.LoadUnmanagedLibrary(dllPath);
+
+builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
+
+builder.Services.AddScoped<PdfService>();
 
 var app = builder.Build();
 
@@ -64,6 +88,7 @@ app.UseSwagger();
 app.UseSwaggerUI();
 
 //app.UseHttpsRedirection();
+app.UseRouting();
 
 app.UseCors("AllowAll");
 

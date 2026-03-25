@@ -30,7 +30,9 @@ namespace FacturacionAPI.Services
                         ItemType = i.ItemType,
                         ProductId = i.ProductId,
                         ServiceMasterId = i.ServiceMasterId,
-                        Quantity = i.Quantity
+                        Quantity = i.Quantity,
+                        ServicePackageId = i.ServicePackageId
+
                     }).ToList()
                 })
                 .ToListAsync();

@@ -32,6 +32,9 @@ namespace FacturacionAPI.Models.Entities
 
         public bool Invoiced { get; set; } = false;
 
+        public int? ServicePackageId { get; set; }
+        public ServicePackage? ServicePackage { get; set; }
+
 
     }
 }

@@ -35,5 +35,8 @@ namespace FacturacionAPI.Models.Entities
         public bool IsInWorkOrder { get; set; } = false;
 
         public bool IsInvoiced { get; set; } = false;
+
+        public int? ServicePackageId { get; set; }
+        public ServicePackage? ServicePackage { get; set; }
     }
 }

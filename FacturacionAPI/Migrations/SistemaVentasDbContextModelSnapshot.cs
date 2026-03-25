@@ -526,6 +526,9 @@ namespace FacturacionAPI.Migrations
                     b.Property<int?>("ServiceMasterId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ServicePackageId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("TotalPrice")
                         .HasColumnType("decimal(18,2)");
 
@@ -542,6 +545,8 @@ namespace FacturacionAPI.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("ServiceMasterId");
+
+                    b.HasIndex("ServicePackageId");
 
                     b.HasIndex("VehicleBudgetItemId");
 
@@ -1105,6 +1110,9 @@ namespace FacturacionAPI.Migrations
                     b.Property<int?>("ServiceMasterId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ServicePackageId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("TotalPrice")
                         .HasColumnType("decimal(18,2)");
 
@@ -1119,6 +1127,8 @@ namespace FacturacionAPI.Migrations
                     b.HasIndex("ProductId");
 
                     b.HasIndex("ServiceMasterId");
+
+                    b.HasIndex("ServicePackageId");
 
                     b.HasIndex("VehicleBudgetId");
 
@@ -1152,6 +1162,9 @@ namespace FacturacionAPI.Migrations
                     b.Property<string>("PickupAddress")
                         .HasMaxLength(250)
                         .HasColumnType("nvarchar(250)");
+
+                    b.Property<string>("Services")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("VehicleId")
                         .HasColumnType("int");
@@ -1329,6 +1342,9 @@ namespace FacturacionAPI.Migrations
 
                     b.Property<int?>("DetraccionTipo")
                         .HasColumnType("int");
+
+                    b.Property<string>("Direccion")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("EnlaceCdr")
                         .HasColumnType("nvarchar(max)");
@@ -1725,6 +1741,10 @@ namespace FacturacionAPI.Migrations
                         .WithMany()
                         .HasForeignKey("ServiceMasterId");
 
+                    b.HasOne("FacturacionAPI.Models.Entities.ServicePackage", "ServicePackage")
+                        .WithMany()
+                        .HasForeignKey("ServicePackageId");
+
                     b.HasOne("FacturacionAPI.Models.Entities.VehicleBudgetItem", "VehicleBudgetItem")
                         .WithMany()
                         .HasForeignKey("VehicleBudgetItemId")
@@ -1734,6 +1754,8 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ServiceMaster");
+
+                    b.Navigation("ServicePackage");
 
                     b.Navigation("VehicleBudgetItem");
                 });
@@ -1868,6 +1890,10 @@ namespace FacturacionAPI.Migrations
                         .WithMany()
                         .HasForeignKey("ServiceMasterId");
 
+                    b.HasOne("FacturacionAPI.Models.Entities.ServicePackage", "ServicePackage")
+                        .WithMany()
+                        .HasForeignKey("ServicePackageId");
+
                     b.HasOne("FacturacionAPI.Models.Entities.VehicleBudget", "VehicleBudget")
                         .WithMany("Items")
                         .HasForeignKey("VehicleBudgetId")
@@ -1877,6 +1903,8 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Product");
 
                     b.Navigation("ServiceMaster");
+
+                    b.Navigation("ServicePackage");
 
                     b.Navigation("VehicleBudget");
                 });

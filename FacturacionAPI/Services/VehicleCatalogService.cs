@@ -14,10 +14,37 @@ namespace FacturacionAPI.Services
         public async Task<List<BrandDto>> GetBrandsAsync()
         {
             return await _context.VehicleBrands
-                .Where(x => x.IsActive)
                 .OrderBy(x => x.Name)
                 .Select(x => new BrandDto { Id = x.Id, Name = x.Name, isActive = x.IsActive })
                 .ToListAsync();
+        }
+
+        public async Task<bool> UpdateBrandStateAsync(int id, bool isActive)
+        {
+            var brand = await _context.VehicleBrands.FindAsync(id);
+
+            if (brand == null)
+                return false;
+
+            brand.IsActive = isActive;
+
+            await _context.SaveChangesAsync();
+
+            return true;
+        }
+
+        public async Task<bool> UpdateModelStateAsync(int id, UpdateModelStateDto dto)
+        {
+            var model = await _context.VehicleModels.FindAsync(id);
+
+            if (model == null)
+                return false;
+
+            model.IsActive = dto.IsActive;
+
+            await _context.SaveChangesAsync();
+
+            return true;
         }
 
         public async Task<List<ModelDto>> GetModelsByBrandAsync(int brandId)

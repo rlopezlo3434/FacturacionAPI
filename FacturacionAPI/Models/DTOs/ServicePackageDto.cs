@@ -24,6 +24,7 @@ namespace FacturacionAPI.Models.DTOs
         public int? ServiceMasterId { get; set; }
 
         public int Quantity { get; set; }
+        public int ServicePackageId { get; set; }
     }
 
     public class ServicePackageCreateDto

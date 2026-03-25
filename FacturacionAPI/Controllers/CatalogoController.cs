@@ -67,6 +67,28 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, data });
         }
 
+        [HttpPost("updateBrand/{id}")]
+        public async Task<IActionResult> UpdateBrandState(int id, [FromBody] UpdateBrandStateDto dto)
+        {
+            var result = await _service.UpdateBrandStateAsync(id, dto.IsActive);
+
+            if (!result)
+                return NotFound(new { success = false, message = "Marca no encontrada" });
+
+            return Ok(new { success = true });
+        }
+
+        [HttpPost("models/{id}")]
+        public async Task<IActionResult> UpdateModelState(int id, [FromBody] UpdateModelStateDto dto)
+        {
+            var result = await _service.UpdateModelStateAsync(id, dto);
+
+            if (!result)
+                return NotFound(new { success = false, message = "Modelo no encontrado" });
+
+            return Ok(new { success = true });
+        }
+
         [HttpGet("brands/{brandId}/models")]
         public async Task<IActionResult> GetModelsByBrand(int brandId)
         {

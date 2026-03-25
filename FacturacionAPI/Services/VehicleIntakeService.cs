@@ -107,6 +107,7 @@ namespace FacturacionAPI.Services
                 PickupAddress = dto.PickupAddress,
                 MileageKm = dto.MileageKm,
                 Observations = dto.Observations,
+                Services = dto.Services,
                 CreatedAt = DateTime.Now
             };
 
@@ -250,7 +251,7 @@ namespace FacturacionAPI.Services
                 MileageKm = intake.MileageKm,
                 Observations = intake.Observations,
                 CreatedAt = intake.CreatedAt,
-
+                Services = intake.Services,
                 Vehicle = new VehicleMiniDto2
                 {
                     Id = intake.Vehicle.Id,

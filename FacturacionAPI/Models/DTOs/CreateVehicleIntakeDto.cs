@@ -10,6 +10,7 @@
 
         public int MileageKm { get; set; }
         public string? Observations { get; set; }
+        public string? Services { get; set; }
 
         //public List<CreateVehicleIntakeInventoryItemDto> InventoryItems { get; set; } = new();
         public string InventoryItems { get; set; }

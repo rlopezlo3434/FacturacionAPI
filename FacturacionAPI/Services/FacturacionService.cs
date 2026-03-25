@@ -650,7 +650,8 @@ namespace FacturacionAPI.Services
                     Quantity = item.Quantity,
                     UnitPrice = item.UnitPrice,
                     Discount = item.Discount,
-                    TotalPrice = item.TotalPrice
+                    TotalPrice = item.TotalPrice,
+                    ServicePackageId = item.ServicePackageId
                 });
 
                 item.IsInvoiced = true;
@@ -686,7 +687,8 @@ namespace FacturacionAPI.Services
                                          UnitPrice = i.UnitPrice,
                                          SubTotal = i.TotalPrice,
                                          Selected = false,
-                                         Invoiced = i.Invoiced
+                                         Invoiced = i.Invoiced,
+                                         ServicePackageId = i.ServicePackageId
                                      })
                                      .ToListAsync();
             return items;

@@ -40,6 +40,17 @@
         public string Name { get; set; } = null!;
     }
 
+    public class UpdateBrandStateDto
+    {
+        public bool IsActive { get; set; }
+    }
+
+    public class UpdateModelStateDto
+    {
+        public bool IsActive { get; set; }
+        public int BrandId { get; set; }
+    }
+
     public class CreateModelDto
     {
         public int BrandId { get; set; }

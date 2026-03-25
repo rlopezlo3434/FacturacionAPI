@@ -72,6 +72,7 @@ namespace FacturacionAPI.Services
                 Plate = dto.Plate.Trim().ToUpper(),
                 SerialNumber = dto.SerialNumber.Trim(),
                 Vin = dto.Vin.Trim(),
+                BrandId = dto.BrandId,
                 ModelId = dto.ModelId,
                 Year = dto.Year,
                 Color = dto.Color,

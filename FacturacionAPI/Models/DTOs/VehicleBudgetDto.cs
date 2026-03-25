@@ -1,4 +1,6 @@
-﻿namespace FacturacionAPI.Models.DTOs
+﻿using FacturacionAPI.Models.Entities;
+
+namespace FacturacionAPI.Models.DTOs
 {
     public class VehicleBudgetCreateDto
     {
@@ -18,6 +20,8 @@
 
         public decimal UnitPrice { get; set; }
         public decimal Discount { get; set; } = 0;
+
+        public int? ServicePackageId { get; set; }
     }
 
     public class VehicleBudgetListDto
@@ -41,6 +45,7 @@
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
 
+        public VehicleIntakeDetailDto2 VehicleIntake { get; set; }
         public List<VehicleBudgetItemDetailDto> Items { get; set; } = new();
     }
 
@@ -56,5 +61,10 @@
 
         public CatalogItemDto? Product { get; set; }
         public CatalogItemDto? Service { get; set; }
+
+        public CatalogItemDto? ServicePackage { get; set; }
+
+        public int? ServicePackageId { get; set; }
+
     }
 }

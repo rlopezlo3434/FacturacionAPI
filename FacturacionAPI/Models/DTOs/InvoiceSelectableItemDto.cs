@@ -22,5 +22,7 @@
         public bool Selected { get; set; } = false;
 
         public bool Invoiced { get; set; } = false;
-    }
+
+        public int? ServicePackageId { get; set; }
+}
 }

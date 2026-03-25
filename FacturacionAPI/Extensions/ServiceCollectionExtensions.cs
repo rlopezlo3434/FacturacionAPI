@@ -24,6 +24,8 @@ namespace FacturacionAPI.Extensions
             services.AddScoped<WorkOrderService>();
             services.AddScoped<ProveedorService>();
             services.AddScoped<PaqueteServicioService>();
+            services.AddScoped<PdfService>();
+
 
             return services;
         }

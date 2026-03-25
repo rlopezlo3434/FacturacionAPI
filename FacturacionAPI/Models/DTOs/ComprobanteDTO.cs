@@ -12,6 +12,7 @@ namespace FacturacionAPI.Models.DTOs
         public int? tipo_de_comprobante { get; set; }
         public string? cliente_numero { get; set; }
         public string? cliente_nombre { get; set; }
+        public string? direccion { get; set; }
         public string? serie { get; set; }
         public string? cliente_tipo_documento { get; set; }
         public MetodoPago? metodo_pago { get; set; }

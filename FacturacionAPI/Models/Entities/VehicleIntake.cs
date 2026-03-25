@@ -24,6 +24,8 @@ namespace FacturacionAPI.Models.Entities
         [MaxLength(500)]
         public string? Observations { get; set; }
 
+        public string? Services { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 
         public List<VehicleIntakeInventoryItem> InventoryItems { get; set; } = new();

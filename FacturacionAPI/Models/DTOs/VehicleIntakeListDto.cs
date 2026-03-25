@@ -37,6 +37,7 @@ namespace FacturacionAPI.Models.DTOs
         public string? PickupAddress { get; set; }
         public int MileageKm { get; set; }
         public string? Observations { get; set; }
+        public string? Services { get; set; }
         public DateTime CreatedAt { get; set; }
 
         public VehicleMiniDto2 Vehicle { get; set; } = null!;
@@ -46,6 +47,25 @@ namespace FacturacionAPI.Models.DTOs
 
         public List<VehicleIntakeImageDto> Images { get; set; } = new();
         public List<VehicleIntakeDiagram> ImagesDiagram { get; set; } = new();
+    }
+
+    public class VehicleIntakeDetailDto2
+    {
+        public int Id { get; set; }
+        public int Mode { get; set; }
+        public string? PickupAddress { get; set; }
+        public int MileageKm { get; set; }
+        public string? Observations { get; set; }
+        public string? Services { get; set; }
+        public DateTime CreatedAt { get; set; }
+
+        public VehicleDto Vehicle { get; set; } = null!;
+        public Client Client { get; set; } = null!;
+
+        //public List<VehicleIntakeInventoryDetailDto> InventoryItems { get; set; } = new();
+
+        //public List<VehicleIntakeImageDto> Images { get; set; } = new();
+        //public List<VehicleIntakeDiagram> ImagesDiagram { get; set; } = new();
     }
 
     public class VehicleIntakeInventoryDetailDto

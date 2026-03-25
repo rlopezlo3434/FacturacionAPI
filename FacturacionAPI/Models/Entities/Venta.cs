@@ -10,6 +10,7 @@ namespace FacturacionAPI.Models.Entities
         public int Numero { get; set; }
         public string ClienteDocumento { get; set; } = string.Empty;
         public string ClienteNombre { get; set; } = string.Empty;
+        public string? Direccion { get; set; }
         public decimal TotalGravada { get; set; }
         public decimal TotalIgv { get; set; }
         public decimal Total { get; set; }
