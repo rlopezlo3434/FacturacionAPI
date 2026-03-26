@@ -183,6 +183,7 @@ namespace FacturacionAPI.Services
         {
             var caja = await _context.CajaAperturas
                 .Include(c => c.Movimientos)
+                    .ThenInclude(x => x.Venta)
                 .Include(c => c.Cierre)
                 .FirstOrDefaultAsync(c => c.Id == cajaId);
 
@@ -239,7 +240,9 @@ namespace FacturacionAPI.Services
                 .Where(m =>
                     m.FechaRegistro >= inicioDia &&
                     m.FechaRegistro < finDia &&
-                    m.CajaApertura.EstablishmentId == establishmentId)
+                    m.CajaApertura.EstablishmentId == establishmentId &&
+                    (m.Venta == null || m.Venta.IsAnnulled == false)
+                    )
                 .Include(m => m.Venta)
                 .Include(m => m.CajaApertura)
                     .ThenInclude(c => c.Cierre)
@@ -247,6 +250,7 @@ namespace FacturacionAPI.Services
                     .ThenInclude(c => c.Establishment)
                 .OrderBy(m => m.FechaRegistro)
                 .ToListAsync();
+
 
             if (!movimientos.Any())
                 throw new Exception("No se encontraron movimientos para ese día.");
