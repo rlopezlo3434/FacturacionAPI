@@ -22,9 +22,10 @@ namespace FacturacionAPI.Services
                     Id = v.Id,
                     Plate = v.Plate,
                     SerialNumber = v.SerialNumber,
-                    Vin = v.Vin,
+                    Vin = v.SerialNumber,
                     Year = v.Year,
                     Color = v.Color,
+                    Motor = v.Motor,
                     CurrentMileageKm = v.CurrentMileageKm,
                     IsActive = v.IsActive,
 
@@ -71,13 +72,14 @@ namespace FacturacionAPI.Services
             {
                 Plate = dto.Plate.Trim().ToUpper(),
                 SerialNumber = dto.SerialNumber.Trim(),
-                Vin = dto.Vin.Trim(),
+                Vin = dto.SerialNumber.Trim(),
                 BrandId = dto.BrandId,
                 ModelId = dto.ModelId,
                 Year = dto.Year,
                 Color = dto.Color,
                 CurrentMileageKm = dto.CurrentMileageKm,
-                IsActive = true
+                IsActive = true,
+                Motor = dto.Motor        
             };
 
             _context.Vehicles.Add(vehicle);
@@ -119,13 +121,14 @@ namespace FacturacionAPI.Services
 
             vehicle.Plate = dto.Plate.Trim().ToUpper();
             vehicle.SerialNumber = dto.SerialNumber.Trim();
-            vehicle.Vin = dto.Vin.Trim();
+            vehicle.Vin = dto.SerialNumber.Trim();
             vehicle.BrandId = dto.BrandId;
             vehicle.ModelId = dto.ModelId;
             vehicle.Year = dto.Year;
             vehicle.Color = dto.Color;
             vehicle.CurrentMileageKm = dto.CurrentMileageKm;
             vehicle.IsActive = dto.IsActive;
+            vehicle.Motor = dto.Motor;  
 
             var currentOwner = vehicle.Owners.FirstOrDefault(o => o.IsCurrentOwner);
 

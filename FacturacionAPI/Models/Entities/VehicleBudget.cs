@@ -30,7 +30,7 @@ namespace FacturacionAPI.Models.Entities
         public decimal Total { get; set; }
 
         public string? Notes { get; set; }
-
+        public string? Extras { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? ApprovedAt { get; set; }
 

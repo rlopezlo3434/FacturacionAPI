@@ -365,16 +365,11 @@ namespace FacturacionAPI.Services
 
             var items = request.items.Select(i =>
             {
-                // ✅ AHORA VIENE SIN IGV
-                decimal valorSinIgv = i.value;
-                decimal precioConIgv =
-                    Math.Round(valorSinIgv * FACTOR_IGV, 2);
-                decimal subtotal =
-                    Math.Round(valorSinIgv * i.cantidad, 2);
-                decimal igv =
-                    Math.Round(subtotal * IGV_PERCENT / 100, 2);
-                decimal total =
-                    Math.Round(subtotal + igv, 2);
+                decimal subtotal = i.value; // 🔥 ya es total
+                decimal valorUnitario = subtotal / i.cantidad;
+                decimal precioConIgv = Math.Round(valorUnitario * FACTOR_IGV, 2);
+                decimal igv = Math.Round(subtotal * 0.18m, 2);
+                decimal total = Math.Round(subtotal + igv, 2);
 
                 return new
                 {
@@ -382,14 +377,13 @@ namespace FacturacionAPI.Services
                     codigo = i.code,
                     descripcion = i.description,
                     cantidad = i.cantidad,
-                    valor_unitario = valorSinIgv,
+                    valor_unitario = valorUnitario,
                     precio_unitario = precioConIgv,
                     subtotal,
                     tipo_de_igv = 1,
                     igv,
                     total
                 };
-
             }).ToList();
 
             decimal total = Math.Round(items.Sum(x => (decimal)x.total), 2);
@@ -420,6 +414,7 @@ namespace FacturacionAPI.Services
                 Numero = nuevoCorrelativo,
                 ClienteDocumento = request.cliente_numero,
                 ClienteNombre = request.cliente_nombre,
+                Direccion = request.direccion,
                 TotalGravada = totalGravada,
                 TotalIgv = totalIgv,
                 Total = total,
@@ -485,7 +480,52 @@ namespace FacturacionAPI.Services
             };
         }
 
-       
+
+        public async Task<VentaDetalleResponseDto?> ObtenerVentaDetalleAsync(int ventaId)
+        {
+            var venta = await _context.Ventas
+                .Include(v => v.Detalles)
+                .FirstOrDefaultAsync(v => v.Id == ventaId);
+
+            if (venta == null)
+                return null;
+
+            return new VentaDetalleResponseDto
+            {
+                Id = venta.Id,
+                TipoComprobante = venta.TipoComprobante,
+                Serie = venta.Serie,
+                Numero = venta.Numero,
+                Correlativo = $"{venta.Serie}-{venta.Numero}",
+                Direccion = venta.Direccion,
+                ClienteDocumento = venta.ClienteDocumento,
+                ClienteNombre = venta.ClienteNombre,
+
+                FechaEmision = venta.FechaEmision,
+
+                Subtotal = venta.TotalGravada,
+                Igv = venta.TotalIgv,
+                Total = venta.Total,
+
+                Observaciones = venta.Observaciones,
+
+                Detalles = venta.Detalles.Select(d => new VentaDetalleItemDto
+                {
+                    Codigo = d.Codigo,
+                    Descripcion = d.Descripcion,
+                    Cantidad = d.Cantidad,
+                    ValorUnitario = d.ValorUnitario,
+                    PrecioUnitario = d.PrecioUnitario,
+                    Subtotal = d.Subtotal,
+                    Igv = d.Igv,
+                    Total = d.Total
+                }).ToList(),
+
+                Pdf = venta.EnlacePdf,
+                Xml = venta.EnlaceXml,
+                Cdr = venta.EnlaceCdr
+            };
+        }
 
         public async Task<List<VentaEmpleado>> listVentaEmpleado(int establishmentId)
         {

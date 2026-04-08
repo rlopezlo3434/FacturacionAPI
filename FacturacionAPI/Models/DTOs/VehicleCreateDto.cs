@@ -14,7 +14,7 @@
         public int Year { get; set; }
         public string? Color { get; set; }
         public int? CurrentMileageKm { get; set; }
-
+        public string? Motor { get; set; }
         public int OwnerClientId { get; set; }
     }
 
@@ -30,7 +30,7 @@
         public int Year { get; set; }
         public string? Color { get; set; }
         public int? CurrentMileageKm { get; set; }
-
+        public string? Motor { get; set; }
         public int OwnerClientId { get; set; } 
         public bool IsActive { get; set; } = true;
     }

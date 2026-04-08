@@ -20,7 +20,7 @@ namespace FacturacionAPI.Models.Entities
         public int? ServiceMasterId { get; set; }
         public ServicesMaster? ServiceMaster { get; set; }
 
-        public int Quantity { get; set; } = 1;
+        public decimal Quantity { get; set; } = 1;
 
         [Column(TypeName = "decimal(18,2)")]
         public decimal UnitPrice { get; set; }

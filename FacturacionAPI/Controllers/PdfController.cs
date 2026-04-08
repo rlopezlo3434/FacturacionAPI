@@ -21,5 +21,30 @@ namespace FacturacionAPI.Controllers
 
             return File(pdf, "application/pdf", "test.pdf");
         }
+
+        [HttpGet("{id}/internamiento")]
+        public async Task<IActionResult> PdfInternamiento(int id)
+        {
+            var pdf = await _pdfService.GenerarPdfInternamiento(id);
+
+            return File(pdf, "application/pdf", "test.pdf");
+        }
+
+        [HttpGet("{id}/ordenTrabajo")]
+        public async Task<IActionResult> PdfOrdenTrabajo(int id)
+        {
+            var pdf = await _pdfService.GenerarPdfOrdenTrabajo(id);
+
+            return File(pdf, "application/pdf", "test.pdf");
+        }
+
+        [HttpGet("{id}/factura")]
+        public async Task<IActionResult> PdfFactura(int id)
+        {
+            var pdf = await _pdfService.GenerarPdfFactura(id);
+
+            return File(pdf, "application/pdf", "test.pdf");
+        }
     }
 }
+

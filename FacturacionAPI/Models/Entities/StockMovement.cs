@@ -16,7 +16,7 @@ namespace FacturacionAPI.Models.Entities
         public MovementType MovementType { get; set; } // Entrada o Salida
 
         [Required]
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
 
         public string? Notes { get; set; }
     }

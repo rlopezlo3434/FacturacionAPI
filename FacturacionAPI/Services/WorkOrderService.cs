@@ -240,7 +240,7 @@ namespace FacturacionAPI.Services
                 VehicleIntakeId = wo.VehicleIntakeId,
                 Mode = (int)wo.VehicleIntake.Mode,
                 CreatedAt = wo.CreatedAt,
-
+                Notes = wo.Notes,
                 Vehicle = new VehicleMiniDto
                 {
                     Id = wo.VehicleIntake.Vehicle.Id,

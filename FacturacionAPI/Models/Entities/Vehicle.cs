@@ -11,7 +11,7 @@ namespace FacturacionAPI.Models.Entities
         public string Plate { get; set; } = null!;
 
         public string SerialNumber { get; set; } = null!;
-        public string Vin { get; set; } = null!;
+        public string? Vin { get; set; } = null!;
 
         public int BrandId { get; set; }
         public VehicleBrand Brand { get; set; } = null!;
@@ -24,6 +24,7 @@ namespace FacturacionAPI.Models.Entities
 
         public int? CurrentMileageKm { get; set; }
         public bool IsActive { get; set; } = true;
+        public string? Motor { get; set; }
 
         public List<VehicleOwner> Owners { get; set; } = new();
     }

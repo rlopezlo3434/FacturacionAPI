@@ -11,7 +11,7 @@
         public int Year { get; set; }
         public string? Color { get; set; }
         public int? CurrentMileageKm { get; set; }
-
+        public string? Motor { get; set; }
         public bool IsActive { get; set; }
 
         public CatalogItemDto Brand { get; set; } = new();

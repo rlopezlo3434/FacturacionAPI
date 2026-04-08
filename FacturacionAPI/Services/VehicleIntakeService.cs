@@ -229,12 +229,114 @@ namespace FacturacionAPI.Services
             return (true, "Internamiento registrado correctamente.");
         }
 
+        public async Task<(bool Success, string Message)> UpdateVehicleIntakeAsync(
+    int intakeId,
+    CreateVehicleIntakeDto dto,
+    List<IFormFile>? images
+)
+        {
+            var intake = await _context.VehicleIntakes
+                .Include(x => x.InventoryItems)
+                .FirstOrDefaultAsync(x => x.Id == intakeId);
+
+            if (intake == null)
+                return (false, "El internamiento no existe.");
+
+            var vehicle = await _context.Vehicles.FirstOrDefaultAsync(x => x.Id == dto.VehicleId);
+            if (vehicle == null)
+                return (false, "Vehículo no válido.");
+
+            var client = await _context.Client.FirstOrDefaultAsync(x => x.Id == dto.ClientId);
+            if (client == null)
+                return (false, "Cliente no válido.");
+
+            var modeEnum = (IntakeModeEnum)dto.Mode;
+
+            if (modeEnum == IntakeModeEnum.RecojoDomicilio && string.IsNullOrWhiteSpace(dto.PickupAddress))
+                return (false, "La dirección de recojo es obligatoria.");
+
+            if (dto.MileageKm <= 0)
+                return (false, "El kilometraje debe ser mayor a 0.");
+
+            // 🔥 1. ACTUALIZAR CAMPOS
+            intake.VehicleId = dto.VehicleId;
+            intake.ClientId = dto.ClientId;
+            intake.Mode = modeEnum;
+            intake.PickupAddress = dto.PickupAddress;
+            intake.MileageKm = dto.MileageKm;
+            intake.Observations = dto.Observations;
+            intake.Services = dto.Services;
+
+            // 🔥 2. ACTUALIZAR INVENTARIO (REEMPLAZAR)
+            var inventoryItems = JsonSerializer.Deserialize<List<CreateVehicleIntakeInventoryItemDto>>(dto.InventoryItems);
+
+            // eliminar anteriores
+            _context.VehicleIntakeInventoryItems.RemoveRange(intake.InventoryItems);
+
+            var newDetails = inventoryItems!.Select(x => new VehicleIntakeInventoryItem
+            {
+                VehicleIntakeId = intake.Id,
+                InventoryMasterItemId = x.inventoryMasterItemId,
+                IsPresent = x.isPresent
+            }).ToList();
+
+            await _context.VehicleIntakeInventoryItems.AddRangeAsync(newDetails);
+
+            // 🔥 3. AGREGAR NUEVAS IMÁGENES (NO BORRAR EXISTENTES)
+            if (images != null && images.Any())
+            {
+                var basePath = Path.Combine(_env.WebRootPath, "Intakes", intake.Id.ToString());
+
+                if (!Directory.Exists(basePath))
+                    Directory.CreateDirectory(basePath);
+
+                foreach (var image in images)
+                {
+                    if (!image.ContentType.StartsWith("image/"))
+                        continue;
+
+                    using var imageStream = image.OpenReadStream();
+                    using var img = await Image.LoadAsync(imageStream);
+
+                    if (img.Width > 1280)
+                    {
+                        img.Mutate(x =>
+                            x.Resize(new ResizeOptions
+                            {
+                                Size = new Size(1280, 0),
+                                Mode = ResizeMode.Max
+                            })
+                        );
+                    }
+
+                    var fileName = $"{Guid.NewGuid()}.jpg";
+                    var fullPath = Path.Combine(basePath, fileName);
+
+                    await img.SaveAsync(fullPath, new JpegEncoder { Quality = 75 });
+
+                    _context.VehicleIntakeImages.Add(new VehicleIntakeImage
+                    {
+                        VehicleIntakeId = intake.Id,
+                        ImageUrl = $"/Intakes/{intake.Id}/{fileName}",
+                        CreatedAt = DateTime.Now
+                    });
+                }
+            }
+
+            // ❌ NO TOCAR DIAGRAMS (simplemente no hacer nada)
+
+            await _context.SaveChangesAsync();
+
+            return (true, "Internamiento actualizado correctamente.");
+        }
+
         public async Task<VehicleIntakeDetailDto?> GetIntakeDetailAsync(int id)
         {
             var intake = await _context.VehicleIntakes
                 .Include(x => x.Vehicle).ThenInclude(v => v.Brand)
                 .Include(x => x.Vehicle).ThenInclude(v => v.Model)
-                .Include(x => x.Client)
+                .Include(x => x.Client).ThenInclude(v => v.Addresses)
+                .Include(x => x.Client).ThenInclude(v => v.Numbers)
                 .Include(x => x.InventoryItems)
                     .ThenInclude(d => d.InventoryMasterItem)
                 .Include(x => x.Images)
@@ -256,6 +358,10 @@ namespace FacturacionAPI.Services
                 {
                     Id = intake.Vehicle.Id,
                     Plate = intake.Vehicle.Plate,
+                    Anio = intake.Vehicle.Year,
+                    SerieNumber = intake.Vehicle.SerialNumber,
+                    Motor = intake.Vehicle.Motor,
+                    Color = intake.Vehicle.Color,
                     Brand = new CatalogMiniDto2
                     {
                         Id = intake.Vehicle.Brand.Id,
@@ -271,7 +377,10 @@ namespace FacturacionAPI.Services
                 Client = new ClientMiniDto2
                 {
                     Id = intake.Client.Id,
-                    Names = intake.Client.Names
+                    Names = intake.Client.Names,
+                    Email = intake.Client.Email,
+                    Numbers = intake.Client.Numbers.ToList(),
+                    Addresses = intake.Client.Addresses.ToList()
                 },
 
                 InventoryItems = intake.InventoryItems

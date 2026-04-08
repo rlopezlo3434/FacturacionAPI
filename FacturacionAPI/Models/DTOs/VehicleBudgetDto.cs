@@ -6,6 +6,7 @@ namespace FacturacionAPI.Models.DTOs
     {
         public int VehicleIntakeId { get; set; }
         public string? Notes { get; set; }
+        public string? Extras { get; set; }
         public List<VehicleBudgetItemCreateDto> Items { get; set; } = new();
     }
 
@@ -16,7 +17,7 @@ namespace FacturacionAPI.Models.DTOs
         public int? ProductId { get; set; }
         public int? ServiceMasterId { get; set; }
 
-        public int Quantity { get; set; } = 1;
+        public decimal Quantity { get; set; } = 1;
 
         public decimal UnitPrice { get; set; }
         public decimal Discount { get; set; } = 0;
@@ -43,6 +44,7 @@ namespace FacturacionAPI.Models.DTOs
         public decimal SubTotal { get; set; }
         public decimal Total { get; set; }
         public string? Notes { get; set; }
+        public string? Extras { get; set; }
         public DateTime CreatedAt { get; set; }
 
         public VehicleIntakeDetailDto2 VehicleIntake { get; set; }
@@ -53,7 +55,7 @@ namespace FacturacionAPI.Models.DTOs
     {
         public int Id { get; set; }
         public int ItemType { get; set; } // 1 product, 2 service
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public decimal UnitPrice { get; set; }
         public decimal TotalPrice { get; set; }
         public decimal Discount { get; set; } = 0;

@@ -60,7 +60,7 @@
         public int ItemType { get; set; } // 1=Producto, 2=Servicio
         public int BudgetItemId { get; set; }
         public string Name { get; set; } = null!;
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
         public bool IsCompleted { get; set; }
         public string? Observations { get; set; }
     }

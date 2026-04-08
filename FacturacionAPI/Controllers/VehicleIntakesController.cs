@@ -49,6 +49,21 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, message = result.Message });
         }
 
+        [HttpPut("{id}")]
+        public async Task<IActionResult> Update(
+            int id,
+            [FromForm] CreateVehicleIntakeDto dto,
+            List<IFormFile>? images
+        )
+        {
+            var result = await _service.UpdateVehicleIntakeAsync(id, dto, images);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetIntakes()
         {

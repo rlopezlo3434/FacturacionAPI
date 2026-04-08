@@ -52,6 +52,7 @@ namespace FacturacionAPI.Services
                 Code = code,
                 VehicleIntakeId = dto.VehicleIntakeId,
                 Notes = dto.Notes,
+                Extras = dto.Extras,
                 CreatedAt = DateTime.Now,
                 IsApproved = false,
                 IsOfficial = false
@@ -237,6 +238,7 @@ namespace FacturacionAPI.Services
                     IsApproved = x.IsApproved,
                     IsOfficial = x.IsOfficial,
                     Notes = x.Notes,
+                    Extras = x.Extras,
                     SubTotal = x.SubTotal,
                     Total = x.Total,
                     CreatedAt = x.CreatedAt,
@@ -304,6 +306,97 @@ namespace FacturacionAPI.Services
                     }).ToList()
                 })
                 .FirstOrDefaultAsync();
+        }
+
+
+        public async Task<List<VehicleBudgetDetailDto?>> GetBudgetDetailTrabajoAsync(int idInternamiento)
+        {
+            return await _context.VehicleBudgets
+                .Include(x => x.VehicleIntake)
+                    .ThenInclude(vi => vi.Client)
+                .Include(x => x.VehicleIntake)
+                    .ThenInclude(vi => vi.Vehicle)
+                        .ThenInclude(v => v.Brand)
+                .Include(x => x.VehicleIntake)
+                    .ThenInclude(vi => vi.Vehicle)
+                        .ThenInclude(v => v.Model)
+                .Include(x => x.Items)
+                .ThenInclude(i => i.ServicePackage)
+                .Where(x => x.VehicleIntakeId == idInternamiento)
+                .Select(x => new VehicleBudgetDetailDto
+                {
+                    Id = x.Id,
+                    Code = x.Code,
+                    IsApproved = x.IsApproved,
+                    IsOfficial = x.IsOfficial,
+                    Notes = x.Notes,
+                    Extras = x.Extras,
+                    SubTotal = x.SubTotal,
+                    Total = x.Total,
+                    CreatedAt = x.CreatedAt,
+                    VehicleIntake = new VehicleIntakeDetailDto2
+                    {
+                        Id = x.VehicleIntake.Id,
+                        MileageKm = x.VehicleIntake.MileageKm,
+                        Observations = x.VehicleIntake.Observations,
+                        Services = x.VehicleIntake.Services,
+                        CreatedAt = x.VehicleIntake.CreatedAt,
+                        Client = new Client
+                        {
+                            Id = x.VehicleIntake.Client.Id,
+                            Names = x.VehicleIntake.Client.Names,
+                            DocumentIdentificationNumber = x.VehicleIntake.Client.DocumentIdentificationNumber,
+                            Email = x.VehicleIntake.Client.Email,
+                            Numbers = x.VehicleIntake.Client.Numbers,
+                            Addresses = x.VehicleIntake.Client.Addresses,
+                        },
+                        Vehicle = new VehicleDto
+                        {
+                            Id = x.VehicleIntake.Vehicle.Id,
+                            Plate = x.VehicleIntake.Vehicle.Plate,
+                            SerialNumber = x.VehicleIntake.Vehicle.SerialNumber,
+                            Vin = x.VehicleIntake.Vehicle.Vin,
+                            Year = x.VehicleIntake.Vehicle.Year,
+                            Color = x.VehicleIntake.Vehicle.Color,
+                            Brand = new BrandDto
+                            {
+                                Id = x.VehicleIntake.Vehicle.Brand.Id,
+                                Name = x.VehicleIntake.Vehicle.Brand.Name
+                            },
+                            Model = new ModelDto
+                            {
+                                Id = x.VehicleIntake.Vehicle.Model.Id,
+                                Name = x.VehicleIntake.Vehicle.Model.Name
+                            }
+                        }
+                    },
+                    Items = x.Items.Select(i => new VehicleBudgetItemDetailDto
+                    {
+                        Id = i.Id,
+                        ItemType = (int)i.ItemType,
+                        Quantity = i.Quantity,
+                        Discount = i.Discount,
+                        UnitPrice = i.UnitPrice,
+                        TotalPrice = i.TotalPrice,
+                        IsApproved = i.IsApproved,
+                        Product = i.ProductId == null ? null : new CatalogItemDto
+                        {
+                            Id = i.Product!.Id,
+                            Name = i.Product.Name
+                        },
+                        Service = i.ServiceMasterId == null ? null : new CatalogItemDto
+                        {
+                            Id = i.ServiceMaster!.Id,
+                            Name = i.ServiceMaster.Name
+                        },
+                        ServicePackage = i.ServicePackageId == null ? null : new CatalogItemDto
+                        {
+                            Id = i.ServicePackage!.Id,
+                            Name = i.ServicePackage.Description
+                        },
+                        ServicePackageId = i.ServicePackageId
+                    }).ToList()
+                }).ToListAsync();
         }
 
     }

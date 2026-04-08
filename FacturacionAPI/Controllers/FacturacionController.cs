@@ -99,6 +99,17 @@ namespace FacturacionAPI.Controllers
             }
         }
 
+        [HttpGet("{id}")]
+        public async Task<IActionResult> ObtenerVenta(int id)
+        {
+            var result = await _facturacionService.ObtenerVentaDetalleAsync(id);
+
+            if (result == null)
+                return NotFound(new { message = "Venta no encontrada" });
+
+            return Ok(result);
+        }
+
         [Authorize]
         [HttpGet("descargar-pdf")]
         public async Task<IActionResult> DescargarPdf(string url)

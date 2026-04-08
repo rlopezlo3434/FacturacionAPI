@@ -22,7 +22,7 @@ namespace FacturacionAPI.Models.Entities
         public int? ServiceMasterId { get; set; }
         public ServicesMaster? ServiceMaster { get; set; }
 
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
 
         public decimal UnitPrice { get; set; }
 

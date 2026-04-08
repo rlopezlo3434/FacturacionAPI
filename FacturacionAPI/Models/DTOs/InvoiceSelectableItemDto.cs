@@ -12,7 +12,7 @@
 
         public int ItemType { get; set; } // 1 Producto | 2 Servicio
 
-        public int Quantity { get; set; }
+        public decimal Quantity { get; set; }
 
         public decimal UnitPrice { get; set; }
         public decimal Discount { get; set; }

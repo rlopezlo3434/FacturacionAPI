@@ -13,7 +13,7 @@ namespace FacturacionAPI.Models.Entities
         [JsonIgnore]
         public Item Item { get; set; }
 
-        public int Quantity { get; set; } = 0; // stock actual
+        public decimal Quantity { get; set; } = 0; // stock actual
         public int MinStock { get; set; } = 0; // opcional, para alertas de reabastecimiento
     }
 }

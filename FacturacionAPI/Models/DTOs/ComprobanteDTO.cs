@@ -30,7 +30,7 @@ namespace FacturacionAPI.Models.DTOs
         public string description { get; set; }
         public decimal value { get; set; }
         public bool isActive { get; set; }
-        public int cantidad { get; set; }
+        public decimal cantidad { get; set; }
         public decimal subtotal { get; set; }
         public decimal igv { get; set; }
         public decimal total { get; set; }

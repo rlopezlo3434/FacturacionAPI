@@ -1,5 +1,7 @@
 ﻿using FacturacionAPI.Migrations;
 using FacturacionAPI.Models.Entities;
+using FacturacionAPI.Models.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace FacturacionAPI.Models.DTOs
 {
@@ -82,6 +84,11 @@ namespace FacturacionAPI.Models.DTOs
     {
         public int Id { get; set; }
         public string Plate { get; set; } = null!;
+        public string SerieNumber { get; set; }
+        public string Motor { get; set; }
+        public string Color { get; set; }
+        public int Anio { get; set; }
+
         public CatalogMiniDto2 Brand { get; set; } = null!;
         public CatalogMiniDto2 Model { get; set; } = null!;
     }
@@ -90,6 +97,22 @@ namespace FacturacionAPI.Models.DTOs
     {
         public int Id { get; set; }
         public string Names { get; set; } = null!;
+        public string Email { get; set; } = null!;
+        public List<ClientNumbers> Numbers { get; set; }
+        public List<ClientAddress> Addresses { get; set; }
+    }
+
+    public class ClientNumbers2
+    {
+        public int Id { get; set; }
+    
+        public string? ContactName { get; set; }
+
+        public ContactTypeEnum Type { get; set; } = ContactTypeEnum.Otro;
+
+        public string Number { get; set; }
+
+        public bool IsPrimary { get; set; } = false;
     }
 
     public class CatalogMiniDto2

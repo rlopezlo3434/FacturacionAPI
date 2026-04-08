@@ -1,5 +1,6 @@
 ﻿using FacturacionAPI.Models.Enums;
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace FacturacionAPI.Models.Entities
 {
@@ -9,6 +10,7 @@ namespace FacturacionAPI.Models.Entities
         public int Id { get; set; }
 
         public int ClientId { get; set; }
+        [JsonIgnore]
         public Client Client { get; set; }
 
         [MaxLength(50)]
