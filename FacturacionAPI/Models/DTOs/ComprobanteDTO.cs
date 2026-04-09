@@ -17,7 +17,7 @@ namespace FacturacionAPI.Models.DTOs
         public MetodoPago metodo_pago { get; set; }
         public DateTime fecha_emision { get; set; }
         public string codigoPromocional { get; set; }
-
+        public int? porcentajePromo { get; set; }
 
     }
     public class VentaItem
@@ -33,7 +33,6 @@ namespace FacturacionAPI.Models.DTOs
         public decimal subtotal { get; set; }
         public decimal igv { get; set; }
         public decimal total { get; set; }
-
         public List<Empleadoo> empleados { get; set; }
 
     }
