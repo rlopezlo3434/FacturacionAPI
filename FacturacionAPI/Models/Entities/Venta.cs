@@ -14,6 +14,10 @@ namespace FacturacionAPI.Models.Entities
         public decimal TotalGravada { get; set; }
         public decimal TotalIgv { get; set; }
         public decimal Total { get; set; }
+        public string? Marca { get; set; }
+        public string? Modelo { get; set; }
+        public int? Anio { get; set; }
+        public string? Placa { get; set; }
         
         // 🔹 DETRACCIÓN
         public bool Detraccion { get; set; } = false;

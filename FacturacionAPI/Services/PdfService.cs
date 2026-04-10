@@ -820,6 +820,10 @@ body {{
 
         private string GenerarFacturaCabecera(VentaDetalleResponseDto data)
         {
+            var tipoComprobante = (data?.Serie != null && data.Serie.StartsWith("B"))
+    ? "BOLETA ELECTRONICA"
+    : "FACTURA ELECTRONICA";
+
             return $@"
                     <style>
 
@@ -920,7 +924,7 @@ body {{
                                     </tr>
                                     <tr>
                                         <td class='label-box'>NRO PLACA <small>:</small></td>
-                                        <td colspan='3'></td>
+                                        <td colspan='3'>{data?.Placa}</td>
                                     </tr>
                                 </table>
 
@@ -932,7 +936,7 @@ body {{
                                 <table class='factura-box'>
                                     <tr>
                                         <td class='linea factura-title'>
-                                            FACTURA ELECTRONICA
+                                            {tipoComprobante}
                                         </td>
                                     </tr>
                                     <tr>
@@ -965,13 +969,83 @@ body {{
                     </table>
                     ";
         }
+        public static string Convertir(decimal numero)
+        {
+            long entero = (long)Math.Floor(numero);
+            int decimales = (int)((numero - entero) * 100);
 
+            return $"{ConvertirEntero(entero)} CON {decimales:00} / 100 SOLES";
+        }
+
+        private static string ConvertirEntero(long numero)
+        {
+            if (numero == 0) return "CERO";
+            if (numero < 0) return "MENOS " + ConvertirEntero(Math.Abs(numero));
+
+            string letras = "";
+
+            if ((numero / 1000000) > 0)
+            {
+                letras += ConvertirEntero(numero / 1000000) + " MILLONES ";
+                numero %= 1000000;
+            }
+
+            if ((numero / 1000) > 0)
+            {
+                letras += (numero / 1000 == 1 ? "MIL " : ConvertirEntero(numero / 1000) + " MIL ");
+                numero %= 1000;
+            }
+
+            if ((numero / 100) > 0)
+            {
+                switch (numero / 100)
+                {
+                    case 1: letras += (numero % 100 == 0) ? "CIEN " : "CIENTO "; break;
+                    case 2: letras += "DOSCIENTOS "; break;
+                    case 3: letras += "TRESCIENTOS "; break;
+                    case 4: letras += "CUATROCIENTOS "; break;
+                    case 5: letras += "QUINIENTOS "; break;
+                    case 6: letras += "SEISCIENTOS "; break;
+                    case 7: letras += "SETECIENTOS "; break;
+                    case 8: letras += "OCHOCIENTOS "; break;
+                    case 9: letras += "NOVECIENTOS "; break;
+                }
+                numero %= 100;
+            }
+
+            if (numero > 0)
+            {
+                if (numero <= 20)
+                {
+                    string[] unidades = { "", "UNO", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE",
+                                     "DIEZ", "ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE", "DIECISEIS",
+                                     "DIECISIETE", "DIECIOCHO", "DIECINUEVE", "VEINTE" };
+                    letras += unidades[numero];
+                }
+                else if (numero < 30)
+                {
+                    letras += "VEINTI" + ConvertirEntero(numero - 20);
+                }
+                else
+                {
+                    string[] decenas = { "", "", "VEINTE", "TREINTA", "CUARENTA", "CINCUENTA",
+                                     "SESENTA", "SETENTA", "OCHENTA", "NOVENTA" };
+
+                    letras += decenas[numero / 10];
+
+                    if ((numero % 10) > 0)
+                        letras += " Y " + ConvertirEntero(numero % 10);
+                }
+            }
+
+            return letras.Trim();
+        }
         private string GenerarDetalleFactura(VentaDetalleResponseDto? data)
         {
             var filas = "";
             int index = 1;
             var qr = GenerarQrBase64(data);
-
+            var totalEnLetras = Convertir(data.Total);
             // 🔹 FILAS REALES
             foreach (var item in data.Detalles)
             {
@@ -1100,7 +1174,7 @@ body {{
 
 <!-- SON -->
 <div class='detalle-footer'>
-    SON: MIL TRESCIENTOS OCHENTA Y NUEVE CON 45 / 100 SOLES
+    SON: {totalEnLetras}
 </div>
 
 <!-- BLOQUE INFERIOR -->
@@ -1269,13 +1343,88 @@ body {{
 
     </html>";
         }
+        private string ObtenerCodigoDetraccion(int? tipo)
+        {
+            if (tipo == null)
+                return "";
 
+            var map = new Dictionary<int, string>
+    {
+        {1, "001"},
+        {2, "002"},
+        {3, "003"},
+        {4, "004"},
+        {5, "005"},
+        {7, "007"},
+        {8, "008"},
+        {9, "009"},
+        {10, "010"},
+        {11, "011"},
+        {12, "012"},
+        {13, "014"},
+        {14, "016"},
+        {15, "017"},
+        {17, "019"},
+        {18, "020"},
+        {19, "021"},
+        {20, "022"},
+        {21, "023"},
+        {22, "024"},
+        {23, "025"},
+        {24, "026"},
+        {25, "027"},
+        {26, "028"},
+        {28, "030"},
+        {29, "031"},
+        {30, "032"},
+        {32, "034"},
+        {33, "035"},
+        {34, "036"},
+        {35, "037"},
+        {37, "039"},
+        {38, "040"},
+        {39, "041"},
+        {40, "013"},
+        {41, "015"},
+        {42, "099"},
+        {43, "044"},
+        {44, "045"}
+    };
+
+            return map.ContainsKey(tipo.Value) ? map[tipo.Value] : "";
+        }
         private string GenerarDetalleFacturaPaginado(
     VentaDetalleResponseDto data,
     List<VentaDetalleItemDto> items)
         {
             var filas = "";
             int index = 1;
+
+            var htmlDetraccion = "";
+
+            if (data.Serie != null && !data.Serie.StartsWith("B") && data.Detraccion)
+            {
+                htmlDetraccion = $@"
+    <table style='width:100%; border-collapse:collapse; font-size:11px; margin-top:8px;'>
+        <tr>
+            <td colspan='5' style='border:1px solid black; background:#507FC2; color:white; font-weight:bold; text-align:center; padding:5px;'>
+                Detalle de Detracciones:
+            </td>
+        </tr>
+
+        <tr style='font-weight:bold; text-align:center;'>
+            <td style='border:1px solid black;'>Cod,Bien o Servicio de Detracción</td>
+            <td style='border:1px solid black;'>% de Detracción</td>
+            <td style='border:1px solid black;'>Monto Detracción</td>
+        </tr>
+
+        <tr style='text-align:center;'>
+            <td style='border:1px solid black;'>{ObtenerCodigoDetraccion(data.DetraccionTipo)}</td>
+            <td style='border:1px solid black;'>{data.DetraccionPorcentaje:0.##}%</td>
+            <td style='border:1px solid black;'>S/ {data.DetraccionMonto:0.00}</td>
+        </tr>
+    </table>";
+            }
 
             foreach (var item in items)
             {
@@ -1291,8 +1440,9 @@ body {{
 
                 index++;
             }
+            var totalEnLetras = Convertir(data.Total);
 
-            int totalFilasDeseadas =  26;
+            int totalFilasDeseadas = data.Detraccion ? 23 : 26;
             int filasFaltantes = totalFilasDeseadas - items.Count;
 
             for (int i = 0; i < filasFaltantes; i++)
@@ -1413,9 +1563,9 @@ body {{
         <td></td>
         <td></td>
         <td style='padding-top:10px;'>
-            <b>MARCA:</b>  &nbsp;&nbsp;
-            <b>MODELO:</b> <br/>
-            <b>AÑO:</b> 
+            <b>MARCA:</b> {data?.Marca}  &nbsp;&nbsp;
+            <b>MODELO:</b> {data?.Modelo} <br/>
+            <b>AÑO: {data?.Anio}</b> 
         </td>
         <td></td>
         <td></td>
@@ -1423,7 +1573,7 @@ body {{
 </table>
 
 <div class='detalle-footer'>
-    SON: MIL TRESCIENTOS OCHENTA Y NUEVE CON 45 / 100 SOLES
+    SON: {totalEnLetras}
 </div>
 
 <table style='width:100%; margin-top:10px; border-collapse:collapse; font-size:11px;'>
@@ -1458,6 +1608,7 @@ body {{
     Esta es una representación impresa de la factura electrónica {data.Serie}-{data.Numero}.
 </div>
 
+{htmlDetraccion}
 <table class='bancos-table'>
     <tr>
         <td colspan='3' class='bancos-head'>

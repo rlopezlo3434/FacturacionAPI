@@ -47,6 +47,7 @@
 
     public class UpdateModelStateDto
     {
+        public string? Name { get; set; }
         public bool IsActive { get; set; }
         public int BrandId { get; set; }
     }

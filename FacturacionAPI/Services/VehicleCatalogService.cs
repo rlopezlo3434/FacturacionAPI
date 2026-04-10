@@ -40,6 +40,10 @@ namespace FacturacionAPI.Services
             if (model == null)
                 return false;
 
+            if (!string.IsNullOrWhiteSpace(dto.Name))
+            {
+                model.Name = dto.Name.Trim();
+            }
             model.IsActive = dto.IsActive;
 
             await _context.SaveChangesAsync();
@@ -50,7 +54,7 @@ namespace FacturacionAPI.Services
         public async Task<List<ModelDto>> GetModelsByBrandAsync(int brandId)
         {
             return await _context.VehicleModels
-                .Where(x => x.IsActive && x.BrandId == brandId)
+                .Where(x => x.BrandId == brandId)
                 .OrderBy(x => x.Name)
                 .Select(x => new ModelDto { Id = x.Id, BrandId = x.BrandId, Name = x.Name, isActive = x.IsActive })
                 .ToListAsync();

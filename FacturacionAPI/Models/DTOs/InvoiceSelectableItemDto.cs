@@ -9,7 +9,13 @@
         public string IntakeCode { get; set; } = null!;
 
         public string Description { get; set; } = null!;
+        public string Brand { get; set; } = null;
 
+        public string Model { get; set; } = null;
+
+        public int Anio { get; set; }
+
+        public string Placa { get; set; } = null!;
         public int ItemType { get; set; } // 1 Producto | 2 Servicio
 
         public decimal Quantity { get; set; }

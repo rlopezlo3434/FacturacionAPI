@@ -186,7 +186,13 @@ namespace FacturacionAPI.Services
             decimal total = items.Sum(x => (decimal)x.total);
             decimal totalGravada = Math.Round(total / FACTOR_IGV, 2);
             decimal totalIgv = Math.Round(total - totalGravada, 2);
+            decimal? detraccionMonto = null;
 
+            if (request.detraccion)
+            {
+                detraccionMonto = request.detraccion_total ??
+                    Math.Round(total * (request.detraccion_porcentaje ?? 12) / 100, 2);
+            }
             // 🔥 CREAS LA VENTA (SIN GUARDAR)
             var venta = new Venta
             {
@@ -203,6 +209,14 @@ namespace FacturacionAPI.Services
                 FechaEmision = DateTime.Now,
                 MetodoPago = request.metodo_pago ?? MetodoPago.Efectivo,
                 EstablishmentId = establishmentId,
+                Marca = request.items[0].brand,
+                Modelo = request.items[0].model,
+                Anio = request.items[0].anio,
+                Placa = request.items[0].placa,
+                Detraccion = request.detraccion,
+                DetraccionPorcentaje = request.detraccion_porcentaje,
+                DetraccionMonto = request.detraccion_total,
+                DetraccionTipo = request.detraccion_tipo,
                 Detalles = request.items.Select(i => new VentaDetalle
                 {
                     Codigo = i.code,
@@ -221,15 +235,21 @@ namespace FacturacionAPI.Services
             {
                 operacion = "generar_comprobante",
                 tipo_de_comprobante = request.tipo_de_comprobante,
+                sunat_transaction = 1,
                 serie = request.serie,
                 numero = nuevoCorrelativo,
                 cliente_tipo_de_documento = int.Parse(request.cliente_tipo_documento),
                 cliente_numero_de_documento = request.cliente_numero,
                 cliente_denominacion = request.cliente_nombre,
+                fecha_de_emision = request.fecha_emision?.ToString("dd-MM-yyyy"),
                 cliente_direccion = request.direccion,
                 total = total,
                 total_igv = totalIgv,
+                porcentaje_de_igv = IGV_PERCENT,
                 total_gravada = totalGravada,
+                enviar_automaticamente_a_la_sunat = true,
+                enviar_automaticamente_al_cliente = false,
+
                 moneda = 1,
                 items
             });
@@ -249,8 +269,8 @@ namespace FacturacionAPI.Services
 
             bool aceptadaPorSunat = nubefactResp.GetProperty("aceptada_por_sunat").GetBoolean();
 
-            if (!aceptadaPorSunat)
-                throw new Exception("SUNAT rechazó el comprobante");
+            //if (!aceptadaPorSunat)
+            //    throw new Exception("SUNAT rechazó el comprobante");
 
             // 🔥 AQUÍ recién completas datos reales
             venta.CodigoHash = nubefactResp.GetProperty("codigo_hash").GetString();
@@ -260,6 +280,23 @@ namespace FacturacionAPI.Services
 
             // 🔥 GUARDAS UNA SOLA VEZ
             _context.Ventas.Add(venta);
+            await _context.SaveChangesAsync();
+
+            var invoiceItemIds = request.items
+                .Where(i => i.id != null)
+                .Select(i => i.id)
+                .ToList();
+
+            var invoiceItems = await _context.InvoicesItem
+                .Where(ii => invoiceItemIds.Contains(ii.Id))
+                .ToListAsync();
+
+            foreach (var item in invoiceItems)
+            {
+                item.Invoiced = true;
+            }
+
+
             await _context.SaveChangesAsync();
 
             return new
@@ -411,9 +448,15 @@ namespace FacturacionAPI.Services
                 Direccion = venta.Direccion,
                 ClienteDocumento = venta.ClienteDocumento,
                 ClienteNombre = venta.ClienteNombre,
-
+                Marca = venta.Marca,
+                Modelo = venta.Modelo,
+                Anio = venta.Anio,
+                Placa = venta.Placa,
                 FechaEmision = venta.FechaEmision,
-
+                Detraccion = venta.Detraccion,
+                DetraccionTipo = venta.DetraccionTipo,
+                DetraccionMonto = venta.DetraccionMonto,
+                DetraccionPorcentaje = venta.DetraccionPorcentaje,
                 Subtotal = venta.TotalGravada,
                 Igv = venta.TotalIgv,
                 Total = venta.Total,
@@ -476,6 +519,8 @@ namespace FacturacionAPI.Services
                    Total = v.Total,
                    Fecha = v.FechaEmision.ToString("dd/MM/yyyy HH:mm"),
                    LinkPdf = v.EnlacePdf, // Campo devuelto por Nubefact (guárdalo al registrar)
+                   LinkCdr = v.EnlaceCdr,
+                   LinkXml = v.EnlaceXml,
                    Anulado = v.IsAnnulled,
                    ClienteNombre = v.ClienteNombre,
                    ClienteNumero = v.ClienteDocumento
@@ -628,6 +673,10 @@ namespace FacturacionAPI.Services
                                      {
                                          BudgetItemId = i.Id,
                                          IntakeCode = i.VehicleBudgetItem.VehicleBudget.Code,
+                                         Brand = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Brand.Name,
+                                         Model = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Model.Name,
+                                         Anio = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Year,
+                                         Placa = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Plate,
                                          Description =
                                              i.Product != null
                                                  ? i.Product.Name

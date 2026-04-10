@@ -29,6 +29,10 @@ namespace FacturacionAPI.Models.DTOs
         public string code { get; set; }
         public string description { get; set; }
         public decimal value { get; set; }
+        public string? brand { get; set; }
+        public string? model { get; set; }
+        public string? placa { get; set; }
+        public int? anio { get; set; }
         public bool isActive { get; set; }
         public decimal cantidad { get; set; }
         public decimal subtotal { get; set; }

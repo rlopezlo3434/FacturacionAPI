@@ -10,9 +10,15 @@
         public string? Direccion { get; set; }
         public string? ClienteDocumento { get; set; }
         public string? ClienteNombre { get; set; }
-
+        public string? Modelo { get; set; }
+        public string? Marca { get; set; }
+        public int? Anio { get; set; }
+        public string? Placa { get; set; }
         public DateTime FechaEmision { get; set; }
-
+        public bool Detraccion { get; set; } = false;
+        public int? DetraccionTipo { get; set; }
+        public decimal? DetraccionPorcentaje { get; set; }
+        public decimal? DetraccionMonto { get; set; }
         public decimal Subtotal { get; set; }
         public decimal Igv { get; set; }
         public decimal Total { get; set; }
