@@ -9,7 +9,7 @@ namespace FacturacionAPI.Models.DTOs
         public DocumentIdentificationType DocumentIdentificationType { get; set; }
         public string DocumentIdentificationNumber { get; set; }
         public string? Email { get; set; }
-        public GenderEnum Gender { get; set; }
+        public GenderEnum? Gender { get; set; }
         public bool AcceptsMarketing { get; set; }
         public List<ClientContactCreateDto> Numbers { get; set; } = new();
         public List<ClientAddressesDto> Addresses { get; set; } = new();

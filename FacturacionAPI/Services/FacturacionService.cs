@@ -153,80 +153,92 @@ namespace FacturacionAPI.Services
         {
             var establishment = await _context.Establishment.FindAsync(establishmentId);
 
-            // 🔹 Construir items
+            var correlativo = await _context.Ventas
+                .Where(v => v.Serie == request.serie && v.EstablishmentId == establishmentId)
+                .OrderByDescending(v => v.Numero)
+                .Select(v => v.Numero)
+                .FirstOrDefaultAsync();
+
+            var nuevoCorrelativo = correlativo == 0 ? 1 : correlativo + 1;
+
             var items = request.items.Select(i =>
             {
-                // ✅ AHORA VIENE SIN IGV
-                decimal valorSinIgv = i.value;
-                decimal precioConIgv =
-                    Math.Round(valorSinIgv * FACTOR_IGV, 2);
-                decimal subtotal =
-                    Math.Round(valorSinIgv * i.cantidad, 2);
-                decimal igv =
-                    Math.Round(subtotal * IGV_PERCENT / 100, 2);
-                decimal total =
-                    Math.Round(subtotal + igv, 2);
+                decimal subtotal = i.value;
+                decimal valorUnitario = subtotal / i.cantidad;
+                decimal igv = Math.Round(subtotal * 0.18m, 2);
+                decimal total = Math.Round(subtotal + igv, 2);
 
                 return new
                 {
                     unidad_de_medida = "NIU",
-                    codigo = i.code,
+                    codigo = string.IsNullOrWhiteSpace(i.code) ? "ITEM" : i.code,
                     descripcion = i.description,
                     cantidad = i.cantidad,
-
-                    // ✅ SUNAT
-                    valor_unitario = valorSinIgv,
-                    precio_unitario = precioConIgv,
-
+                    valor_unitario = valorUnitario,
+                    precio_unitario = Math.Round(valorUnitario * FACTOR_IGV, 2),
                     subtotal,
                     tipo_de_igv = 1,
                     igv,
                     total
                 };
-
             }).ToList();
 
-            decimal total = Math.Round(items.Sum(x => (decimal)x.total), 2);
+            decimal total = items.Sum(x => (decimal)x.total);
             decimal totalGravada = Math.Round(total / FACTOR_IGV, 2);
             decimal totalIgv = Math.Round(total - totalGravada, 2);
 
-            var correlativo = await _context.Ventas
-                                    .Where(v => v.Serie == request.serie && v.EstablishmentId == establishmentId)
-                                    .OrderByDescending(v => v.Numero)
-                                    .Select(v => v.Numero)
-                                    .FirstOrDefaultAsync();
+            // 🔥 CREAS LA VENTA (SIN GUARDAR)
+            var venta = new Venta
+            {
+                TipoComprobante = request.tipo_de_comprobante == 2 ? "BOLETA" : "FACTURA",
+                Serie = request.serie,
+                Numero = nuevoCorrelativo,
+                ClienteDocumento = request.cliente_numero,
+                ClienteNombre = request.cliente_nombre,
+                Direccion = request.direccion,
+                TotalGravada = totalGravada,
+                TotalIgv = totalIgv,
+                Total = total,
+                Observaciones = request.observaciones,
+                FechaEmision = DateTime.Now,
+                MetodoPago = request.metodo_pago ?? MetodoPago.Efectivo,
+                EstablishmentId = establishmentId,
+                Detalles = request.items.Select(i => new VentaDetalle
+                {
+                    Codigo = i.code,
+                    Descripcion = i.description,
+                    Cantidad = i.cantidad,
+                    ValorUnitario = Math.Round(i.value / FACTOR_IGV, 2),
+                    PrecioUnitario = i.value,
+                    Subtotal = Math.Round((i.value / FACTOR_IGV) * i.cantidad, 2),
+                    Igv = Math.Round((i.value / FACTOR_IGV) * 0.18m * i.cantidad, 2),
+                    Total = Math.Round(i.value * i.cantidad, 2)
+                }).ToList()
+            };
 
-            var nuevoCorrelativo = correlativo == 0 ? 1 : correlativo + 1;
-
-            var comprobante = new
+            // 🔹 ENVÍO A NUBEFACT
+            var json = JsonSerializer.Serialize(new
             {
                 operacion = "generar_comprobante",
                 tipo_de_comprobante = request.tipo_de_comprobante,
                 serie = request.serie,
                 numero = nuevoCorrelativo,
-                sunat_transaction = 1,
-                cliente_tipo_de_documento = request.cliente_tipo_documento,
+                cliente_tipo_de_documento = int.Parse(request.cliente_tipo_documento),
                 cliente_numero_de_documento = request.cliente_numero,
                 cliente_denominacion = request.cliente_nombre,
-                cliente_direccion = "",
-                fecha_de_emision = request.fecha_emision?.ToString("dd-MM-yyyy"),
-                moneda = 1,
-                porcentaje_de_igv = IGV_PERCENT,
-                total_gravada = totalGravada,
-                total_igv = totalIgv,
+                cliente_direccion = request.direccion,
                 total = total,
-                enviar_automaticamente_a_la_sunat = true,
-                enviar_automaticamente_al_cliente = false,
-                observaciones = request.observaciones,
+                total_igv = totalIgv,
+                total_gravada = totalGravada,
+                moneda = 1,
                 items
-            };
+            });
 
-            var json = JsonSerializer.Serialize(comprobante);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", establishment?.TokenNubefact);
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Token", establishment?.TokenNubefact);
 
-            // 🔹 Llamada a Nubefact
             var response = await _httpClient.PostAsync(establishment?.urlNubefact, content);
             var result = await response.Content.ReadAsStringAsync();
 
@@ -235,127 +247,27 @@ namespace FacturacionAPI.Services
 
             var nubefactResp = JsonSerializer.Deserialize<JsonElement>(result);
 
-            bool aceptadaPorSunat = nubefactResp.TryGetProperty("aceptada_por_sunat", out var aceptada) && aceptada.GetBoolean();
-            bool aceptadaPorNubefact = nubefactResp.TryGetProperty("aceptada_por_nubefact", out var aceptadaNube) && aceptadaNube.GetBoolean();
+            bool aceptadaPorSunat = nubefactResp.GetProperty("aceptada_por_sunat").GetBoolean();
 
-            if (!aceptadaPorSunat || aceptadaPorSunat)
-            {
-                var venta = new Venta
-                {
-                    TipoComprobante = request.tipo_de_comprobante == 2 ? "BOLETA" : "FACTURA",
-                    Serie = request.serie,
-                    Numero = nuevoCorrelativo,
-                    ClienteDocumento = request.cliente_numero,
-                    ClienteNombre = request.cliente_nombre,
-                    TotalGravada = totalGravada,
-                    TotalIgv = totalIgv,
-                    Total = total,
-                    Observaciones = request.observaciones,
-                    CodigoHash = nubefactResp.GetProperty("codigo_hash").GetString(),
-                    EnlacePdf = nubefactResp.GetProperty("enlace_del_pdf").GetString(),
-                    EnlaceXml = nubefactResp.GetProperty("enlace_del_xml").GetString(),
-                    EnlaceCdr = nubefactResp.GetProperty("enlace_del_cdr").GetString(),
-                    FechaEmision = DateTime.Now,
-                    MetodoPago = request.metodo_pago.ToString() == "CONTADO" ? request.metodo_pago.Value : MetodoPago.Efectivo,
-                    EstablishmentId = establishmentId,
-                    Detalles = request.items.Select(i => new VentaDetalle
-                    {
-                        Codigo = i.code,
-                        Descripcion = i.description,
-                        Cantidad = i.cantidad,
-                        ValorUnitario = Math.Round(i.value / FACTOR_IGV, 2),
-                        PrecioUnitario = i.value,
-                        Subtotal = Math.Round((i.value / FACTOR_IGV) * i.cantidad, 2),
-                        Igv = Math.Round((i.value / FACTOR_IGV) * 0.18m * i.cantidad, 2),
-                        Total = Math.Round(i.value * i.cantidad, 2),
-                    }).ToList()
-                };
+            if (!aceptadaPorSunat)
+                throw new Exception("SUNAT rechazó el comprobante");
 
-                _context.Ventas.Add(venta);
+            // 🔥 AQUÍ recién completas datos reales
+            venta.CodigoHash = nubefactResp.GetProperty("codigo_hash").GetString();
+            venta.EnlacePdf = nubefactResp.GetProperty("enlace_del_pdf").GetString();
+            venta.EnlaceXml = nubefactResp.GetProperty("enlace_del_xml").GetString();
+            venta.EnlaceCdr = nubefactResp.GetProperty("enlace_del_cdr").GetString();
 
-                // 🔹 Actualizar stock solo para productos
-                foreach (var i in request.items)
-                {
-                    // Buscar el Item en la DB
-                    var itemEntity = await _context.Items
-                        .Include(x => x.ProductDefinition)
-                        .Include(x => x.Stock)
-                        .FirstOrDefaultAsync(x => x.EstablishmentId == establishmentId && x.ProductDefinition.Code == i.code);
-
-                    if (itemEntity != null && itemEntity.ProductDefinition.Item == ItemEnum.producto)
-                    {
-                        if (itemEntity.Stock == null)
-                        {
-                            itemEntity.Stock = new Stock { Quantity = 0 };
-                        }
-
-                        // Crear movimiento de salida
-                        var movimiento = new StockMovement
-                        {
-                            ItemId = itemEntity.Id,
-                            MovementType = MovementType.Salida,
-                            Quantity = i.cantidad,
-                            Notes = $"Venta {venta.Serie}-{venta.Numero}"
-                        };
-                        _context.StockMovement.Add(movimiento);
-
-                        // Actualizar stock actual
-                        itemEntity.Stock.Quantity -= i.cantidad;
-                        if (itemEntity.Stock.Quantity < 0)
-                            itemEntity.Stock.Quantity = 0; // evitar negativos
-                    }
-                }
-
-                await _context.SaveChangesAsync();
-
-                var products = _context.ProductDefinition.ToList();
-
-                //// 🔹 Guardar empleados asignados por servicio
-                //foreach (var item in request.items)
-                //{
-                //    if (item.empleados != null && item.empleados.Any())
-                //    {
-                //        var productId = products.Where(x => x.Code == item.code).FirstOrDefault();
-
-                //        foreach (var empleado in item.empleados)
-                //        {
-                //            _context.ventaEmpleados.Add(new VentaEmpleado
-                //            {
-                //                VentaId = venta.Id,
-                //                EmpleadoId = empleado.id,
-                //                ProductDefinitionId = productId.Id,
-                //                FechaRegistro = DateTime.Now
-                //            });
-                //        }
-                //    }
-                //}
-
-                try
-                {
-                    await _context.SaveChangesAsync();
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception("Error al guardar en BD: " + ex.InnerException?.Message ?? ex.Message);
-                }
-
-                try
-                {
-                    await _cajaService.RegistrarMovimientoPorVenta(venta.Id);
-                }
-                catch (Exception ex)
-                {
-                    // Si quieres que NO falle la venta aunque falle caja, puedes ignorarlo
-                    throw new Exception("Venta registrada, pero error al registrar movimiento en caja: " + ex.Message);
-                }
-
-            }
+            // 🔥 GUARDAS UNA SOLA VEZ
+            _context.Ventas.Add(venta);
+            await _context.SaveChangesAsync();
 
             return new
             {
                 success = true,
-                message = "Venta procesada correctamente",
-                respuesta = nubefactResp
+                message = "Venta registrada correctamente en SUNAT",
+                ventaId = venta.Id,
+                correlativo = $"{venta.Serie}-{venta.Numero}"
             };
         }
 
@@ -457,7 +369,7 @@ namespace FacturacionAPI.Services
 
 
             await _context.SaveChangesAsync();
-         
+           
             try
             {
                 await _context.SaveChangesAsync();
@@ -467,7 +379,6 @@ namespace FacturacionAPI.Services
                 throw new Exception("Error al guardar en BD: " + ex.InnerException?.Message ?? ex.Message);
             }
 
-            // 🔹 Respuesta mock estilo Nubefact
             return new
             {
                 success = true,

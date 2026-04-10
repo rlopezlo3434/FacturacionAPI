@@ -84,8 +84,8 @@ namespace FacturacionAPI.Controllers
 
             try
             {
-                //var resultado = await _facturacionService.RegistrarVentaAsync(request, establishmentId);
-                var resultado = await _facturacionService.RegistrarVentaPruebasAsync(request, establishmentId);
+                var resultado = await _facturacionService.RegistrarVentaAsync(request, establishmentId);
+                //var resultado = await _facturacionService.RegistrarVentaPruebasAsync(request, establishmentId);
 
                 return Ok(resultado);
             }

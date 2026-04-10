@@ -21,8 +21,7 @@ namespace FacturacionAPI.Models.Entities
 
         public string? Email { get; set; }
 
-        [Required]
-        public GenderEnum Gender { get; set; } //  "M", "F"
+        public GenderEnum? Gender { get; set; } //  "M", "F"
 
         public ICollection<ClientNumbers> Numbers { get; set; } = new List<ClientNumbers>();
 

@@ -29,12 +29,6 @@ namespace FacturacionAPI.Services
                     DocumentIdentificationNumber = e.DocumentIdentificationNumber,
                     Email = e.Email,
 
-                    Gender = new CatalogItemDto
-                    {
-                        Id = (int)e.Gender,
-                        Name = e.Gender.ToString()
-                    },
-
                     DocumentIdentificationType = new CatalogItemDto
                     {
                         Id = (int)e.DocumentIdentificationType,
@@ -114,9 +108,6 @@ namespace FacturacionAPI.Services
             if (dto.DocumentIdentificationType != null)
                 client.DocumentIdentificationType = dto.DocumentIdentificationType;
 
-            if (dto.Gender != null)
-                client.Gender = dto.Gender;
-
             client.UpdatedAt = DateTime.Now;
 
             if (dto.Numbers != null)
@@ -195,7 +186,6 @@ namespace FacturacionAPI.Services
                 DocumentIdentificationType = dto.DocumentIdentificationType,
                 DocumentIdentificationNumber = dto.DocumentIdentificationNumber,
                 Email = dto.Email,
-                Gender = dto.Gender,
                 AcceptsMarketing = dto.AcceptsMarketing,
                 EstablishmentId = establishmentId,
                 IsActive = true,
