@@ -25,7 +25,7 @@ namespace FacturacionAPI.Controllers
 
         // ✅ POST api/VehicleBudget
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] VehicleBudgetCreateDto dto)
+        public async Task<IActionResult> ApproveItems([FromBody] VehicleBudgetCreateDto dto)
         {
             var result = await _service.CreateBudgetAsync(dto);
 

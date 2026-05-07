@@ -4,6 +4,7 @@ using FacturacionAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    partial class SistemaVentasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260414065447_delete")]
+    partial class delete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -363,7 +365,7 @@ namespace FacturacionAPI.Migrations
                     b.Property<int>("EstablishmentId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Gender")
+                    b.Property<int>("Gender")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
@@ -856,9 +858,6 @@ namespace FacturacionAPI.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsThird")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1345,9 +1344,6 @@ namespace FacturacionAPI.Migrations
                     b.Property<string>("CodigoHash")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Cond_venta")
-                        .HasColumnType("nvarchar(max)");
-
                     b.Property<bool>("Detraccion")
                         .HasColumnType("bit");
 
@@ -1425,33 +1421,6 @@ namespace FacturacionAPI.Migrations
                     b.HasIndex("EstablishmentId");
 
                     b.ToTable("Ventas");
-                });
-
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.VentaCuota", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<DateTime>("FechaPago")
-                        .HasColumnType("datetime2");
-
-                    b.Property<decimal>("Importe")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<int>("NumeroCuota")
-                        .HasColumnType("int");
-
-                    b.Property<int>("VentaId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VentaId");
-
-                    b.ToTable("VentaCuota");
                 });
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.VentaDetalle", b =>
@@ -2061,17 +2030,6 @@ namespace FacturacionAPI.Migrations
                     b.Navigation("Establishment");
                 });
 
-            modelBuilder.Entity("FacturacionAPI.Models.Entities.VentaCuota", b =>
-                {
-                    b.HasOne("FacturacionAPI.Models.Entities.Venta", "Venta")
-                        .WithMany("Cuotas")
-                        .HasForeignKey("VentaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Venta");
-                });
-
             modelBuilder.Entity("FacturacionAPI.Models.Entities.VentaDetalle", b =>
                 {
                     b.HasOne("FacturacionAPI.Models.Entities.Venta", "Venta")
@@ -2247,8 +2205,6 @@ namespace FacturacionAPI.Migrations
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.Venta", b =>
                 {
-                    b.Navigation("Cuotas");
-
                     b.Navigation("Detalles");
                 });
 

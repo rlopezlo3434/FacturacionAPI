@@ -34,5 +34,7 @@ namespace FacturacionAPI.Models.Entities
 
         public ICollection<VehicleIntakeDiagram> ImagesDiagram { get; set; } = new List<VehicleIntakeDiagram>();
 
+        public bool IsDeleted { get; set; } = false;
+
     }
 }

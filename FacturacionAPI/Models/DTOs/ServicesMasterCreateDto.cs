@@ -4,6 +4,7 @@
     {
         public string Name { get; set; } = null!;
         public decimal Price { get; set; }
+        public bool IsThird { get; set; }
     }
 
     public class ServicesMasterUpdateDto
@@ -11,6 +12,8 @@
         public string Name { get; set; } = null!;
         public decimal Price { get; set; }
         public bool IsActive { get; set; }
+        public bool IsThird { get; set; }
+
     }
 
     public class ServicesMasterListDto
@@ -20,5 +23,6 @@
         public string Name { get; set; } = null!;
         public decimal Price { get; set; }
         public bool IsActive { get; set; }
+        public bool IsThird { get; set; }
     }
 }

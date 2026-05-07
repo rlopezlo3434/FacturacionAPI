@@ -150,7 +150,6 @@ namespace FacturacionAPI.Services
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
                 RoleId = newRole.Id,
                 IsActive = true,
-                Gender = Enum.Parse<GenderEnum>(dto.Gender) 
             };
 
             _context.Employee.Add(employee);

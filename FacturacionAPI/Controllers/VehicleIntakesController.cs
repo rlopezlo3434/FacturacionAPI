@@ -72,6 +72,25 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, data });
         }
 
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var result = await _service.DeleteVehicleIntake(id);
+
+            if (!result.Success)
+                return BadRequest(new
+                {
+                    success = false,
+                    message = result.Message
+                });
+
+            return Ok(new
+            {
+                success = true,
+                message = result.Message
+            });
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDetail(int id)
         {

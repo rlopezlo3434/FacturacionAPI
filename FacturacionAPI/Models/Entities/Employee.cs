@@ -23,8 +23,7 @@ namespace FacturacionAPI.Models.Entities
 
         public string? Email { get; set; }
 
-        [Required]
-        public GenderEnum Gender { get; set; } //  "M", "F"
+        public GenderEnum? Gender { get; set; } //  "M", "F"
 
         // Relaciones
         public int EstablishmentId { get; set; }   

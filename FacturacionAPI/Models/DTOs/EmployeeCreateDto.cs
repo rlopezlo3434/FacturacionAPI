@@ -20,9 +20,6 @@ namespace FacturacionAPI.Models.DTOs
         //public int EstablishmentId { get; set; }
 
         [Required]
-        public string Gender { get; set; }  // "M" o "F"
-
-        [Required]
         public string Username { get; set; }
 
         [Required]

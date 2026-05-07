@@ -16,12 +16,22 @@ namespace FacturacionAPI.Models.DTOs
         public string? serie { get; set; }
         public string? cliente_tipo_documento { get; set; }
         public MetodoPago? metodo_pago { get; set; }
+        public string? tipo_condicion_pago { get; set; } // CONTADO / CREDITO_15 / etc
+        public List<VentaCuota> cuotas { get; set; }
         public DateTime? fecha_emision { get; set; }
         public bool detraccion { get; set; }
         public int? detraccion_tipo { get; set; }
+        public string? cond_venta { get; set; }
         public decimal? detraccion_porcentaje { get; set; }
         public decimal? detraccion_total { get; set; }
 
+    }
+
+    public class VentaCuota
+    {
+        public int Cuota { get; set; }
+        public DateTime FechaPago { get; set; }
+        public decimal Importe { get; set; }
     }
     public class VentaItem
     {

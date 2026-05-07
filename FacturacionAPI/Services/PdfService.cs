@@ -42,8 +42,6 @@ namespace FacturacionAPI.Services
 
             //var html = GenerarPresupuestoDemo();
 
-
-
             var doc = new HtmlToPdfDocument()
             {
                 GlobalSettings = {
@@ -817,12 +815,47 @@ body {{
                     </body>
                     </html>";
         }
+        //private string ObtenerCondicionVentaTexto(string? condicion)
+        //{
+        //    return condicion switch
+        //    {
+        //        "CONTADO" => "CONTADO",
+        //        "CREDITO_3" => "CRÉDITO A 3 DÍAS",
+        //        "CREDITO_15" => "CRÉDITO A 15 DÍAS",
+        //        "CREDITO_30" => "CRÉDITO A 30 DÍAS",
+        //        "CREDITO_CUOTAS" => "CRÉDITO EN CUOTAS",
+        //        _ => "CONTADO"
+        //    };
+        //}
+        private string ObtenerCondicionVentaTexto(string? condicion)
+        {
+            if (condicion != null && condicion.StartsWith("CREDITO_DIAS_"))
+            {
+                var dias = condicion.Replace("CREDITO_DIAS_", "");
+                return $"CRÉDITO A {dias} DÍAS";
+            }
+
+            return condicion switch
+            {
+                "CONTADO" => "CONTADO",
+                "CREDITO_CUOTAS" => "CRÉDITO EN CUOTAS",
+                _ => "CONTADO"
+            };
+        }
 
         private string GenerarFacturaCabecera(VentaDetalleResponseDto data)
         {
             var tipoComprobante = (data?.Serie != null && data.Serie.StartsWith("B"))
     ? "BOLETA ELECTRONICA"
     : "FACTURA ELECTRONICA";
+
+            var condicionCodigo = data?.Cond_venta ?? "CONTADO";
+
+            var formaPago = condicionCodigo == "CONTADO"
+                ? "CONTADO"
+                : "CRÉDITO";
+
+            var condicionVenta = ObtenerCondicionVentaTexto(condicionCodigo);
 
             return $@"
                     <style>
@@ -958,10 +991,10 @@ body {{
                     <table class='cabecera-table' style='margin-top:5px;'>
                         <tr>
                             <td class='label-box'>FORMA DE PAGO <small>:</small></td>
-                            <td>Contado</td>
+                            <td>{formaPago}</td>
 
                             <td class='label-box'>COND. VENTA <small>:</small></td>
-                            <td>CONTADO</td>
+                            <td>{condicionVenta}</td>
 
                             <td class='label-box'>F. VENC. <small>:</small></td>
                             <td>{data?.FechaEmision:dd/MM/yyyy}</td>
@@ -1566,6 +1599,32 @@ body {{
             <b>MARCA:</b> {data?.Marca}  &nbsp;&nbsp;
             <b>MODELO:</b> {data?.Modelo} <br/>
             <b>AÑO: {data?.Anio}</b> 
+            <br/><br/>
+
+                {(
+                    data?.Cond_venta != "CONTADO" && data?.Cuotas != null && data.Cuotas.Any()
+                    ? $@"
+                    <table style='width:100%; font-size:11px; border-collapse: collapse; margin-top:5px;'>
+                        <thead>
+                            <tr>
+                                <th style='text-align:left;'>Cuota</th>
+                                <th style='text-align:left;'>F. Pago</th>
+                                <th style='text-align:right;'>Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {string.Join("", data.Cuotas.Select(c => $@"
+                                <tr>
+                                    <td>{c.NumeroCuota}</td>
+                                    <td>{data.FechaEmision:dd/MM/yyyy}</td>
+                                    <td style='text-align:right;'>S/ {c.Importe:N2}</td>
+                                </tr>
+                            "))}
+                        </tbody>
+                    </table>
+                    "
+                    : ""
+                )}
         </td>
         <td></td>
         <td></td>
@@ -1648,6 +1707,7 @@ body {{
             var respuestos = GenerarRepuestosDemo2(data, data2);
             var servicios = GenerarServiciosDemo2(data, data2);
             var generarTotales = GenerarTotales2(data, data2);
+            //var otros = GenerarOtrosDemo();
 
             var imagePath = Path.Combine(_env.WebRootPath, "header_Internamiento.png");
             var imageUrl = $"file:///{imagePath.Replace("\\", "/")}";
@@ -1696,7 +1756,8 @@ body {{
             var cabecera = GenerarCabeceraPresupuesto(data);
             var respuestos = GenerarRepuestosDemo(data);
             var servicios = GenerarServiciosDemo(data);
-            var otros = GenerarOtrosDemo();
+
+            var otros = GenerarOtrosDemo(data);
             var generarTotales = GenerarTotales(data);
 
             var imagePath = Path.Combine(_env.WebRootPath, "header_Internamiento.png");
@@ -1736,6 +1797,7 @@ body {{
                     {cabecera}
                     {respuestos}
                     {servicios}
+                    {otros}
                     {generarTotales}
 
                     </body>
@@ -1749,9 +1811,13 @@ body {{
                                 ?? data.VehicleIntake?.Client?.Numbers?.FirstOrDefault()?.Number
                                 ?? "-";
             string direccion = data.VehicleIntake?.Client?.Addresses?
-                                .FirstOrDefault(a => a.IsPrimary)?.AddressName
-                                ?? data.VehicleIntake?.Client?.Addresses?.FirstOrDefault()?.AddressName
+                                .FirstOrDefault(a => a.IsPrimary)?.Address
+                                ?? data.VehicleIntake?.Client?.Addresses?.FirstOrDefault()?.Address
                                 ?? "-";
+
+            string doc = data.VehicleIntake.Client.DocumentIdentificationNumber;
+
+            string tipo = doc != null && doc.Trim().Length == 8 ? "DNI" : "RUC";
             return $@"
                 <style>
 
@@ -1823,7 +1889,9 @@ body {{
                        {data.VehicleIntake.Client.Names}
                     </td>
                     <td class='divider'>
-                        <b>DNI</b>
+                        <b>
+                            {tipo}
+                        </b>
                        {data.VehicleIntake.Client.DocumentIdentificationNumber}
                     </td>
 
@@ -1873,7 +1941,7 @@ body {{
 
                 <!-- FILA 6 -->
                 <tr>
-                    <td class='label'>RUC</td>
+                    <td class='label'></td>
                     <td class='divider' colspan='2'></td>
 
                     <td class='label'>KILOMETRAJE</td>
@@ -2106,11 +2174,11 @@ body {{
 
             // 🔥 Agrupar por ServicePackageId (solo los que tienen)
             var grupos = data.Items
-                .Where(i => i.ServicePackageId != null && i.Service != null)
+                .Where(i => i.ServicePackageId != null && i.Service != null && i.Service.IsThird == false)
                 .GroupBy(i => i.ServicePackageId);
 
             var independientes = data.Items
-                .Where(i => i.ServicePackageId == null && i.Service != null)
+                .Where(i => i.ServicePackageId == null && i.Service != null && i.Service.IsThird == false)
                 .ToList();
 
             int itemIndex = 1;
@@ -2170,7 +2238,7 @@ body {{
             }
             // 🔥 TOTAL GENERAL
             decimal totalGeneral = data.Items
-                                        .Where(i => i.Service != null)
+                                        .Where(i => i.Service != null && i.Service.IsThird == false)
                                         .Sum(x => x.TotalPrice);
 
             return $@"
@@ -2265,12 +2333,21 @@ body {{
                 })
                 .ToList();
 
-            // 🔥 4. Agrupar por ServicePackage
-            var grupos = servicios
+            // 🔥 4. Separar OTROS vs NORMALES
+            var otros = servicios
+                .Where(x => x.Item.Service != null && x.Item.Service.IsThird) 
+                .ToList();
+
+            var serviciosNormales = servicios
+                .Where(x => x.Item.Service == null || !x.Item.Service.IsThird)
+                .ToList();
+
+            // 🔥 5. Agrupar normales
+            var grupos = serviciosNormales
                 .Where(i => i.Item.ServicePackageId != null)
                 .GroupBy(i => i.Item.ServicePackageId);
 
-            var independientes = servicios
+            var independientes = serviciosNormales
                 .Where(i => i.Item.ServicePackageId == null)
                 .ToList();
 
@@ -2286,28 +2363,28 @@ body {{
                 decimal totalGrupo = grupo.Sum(x => x.Total);
 
                 filas += $@"
-        <tr>
-            <td class='center'>{itemIndex}</td>
-            <td class='center'>1</td>
-            <td class='center'>UND</td>
-            <td class='servicio-main'>{nombreGrupo}</td>
-            <td></td>
-            <td class='right'>{totalGrupo:0.00}</td>
-        </tr>";
+<tr>
+    <td class='center'>{itemIndex}</td>
+    <td class='center'>1</td>
+    <td class='center'>UND</td>
+    <td class='servicio-main'>{nombreGrupo}</td>
+    <td></td>
+    <td class='right'>{totalGrupo:0.00}</td>
+</tr>";
 
                 foreach (var item in grupo)
                 {
                     var descripcion = GetDescripcion(item.Item);
 
                     filas += $@"
-            <tr>
-                <td></td>
-                <td></td>
-                <td></td>
-                <td class='servicio-detalle'>{descripcion}</td>
-                <td></td>
-                <td></td>
-            </tr>";
+<tr>
+    <td></td>
+    <td></td>
+    <td></td>
+    <td class='servicio-detalle'>{descripcion}</td>
+    <td></td>
+    <td></td>
+</tr>";
                 }
 
                 itemIndex++;
@@ -2319,21 +2396,74 @@ body {{
                 var descripcion = GetDescripcion(item.Item);
 
                 filas += $@"
-        <tr>
-            <td class='center'>{itemIndex}</td>
-            <td class='center'>{item.Quantity}</td>
-            <td class='center'>UND</td>
-            <td class='servicio-main'>{descripcion}</td>
-            <td></td>
-            <td class='right'>{item.Total:0.00}</td>
-        </tr>";
+<tr>
+    <td class='center'>{itemIndex}</td>
+    <td class='center'>{item.Quantity}</td>
+    <td class='center'>UND</td>
+    <td class='servicio-main'>{descripcion}</td>
+    <td></td>
+    <td class='right'>{item.Total:0.00}</td>
+</tr>";
 
                 itemIndex++;
             }
 
-            // 🔥 TOTAL GENERAL REAL (WorkOrder)
-            decimal totalGeneral = servicios.Sum(x => x.Total);
+            // 🔥 TOTAL GENERAL SERVICIOS
+            decimal totalGeneral = serviciosNormales.Sum(x => x.Total);
 
+            // 🔥 TABLA OTROS
+            string tablaOtros = "";
+
+            if (otros.Any())
+            {
+                int itemOtros = 1;
+                decimal subtotalOtros = 0;
+                string filasOtros = "";
+
+                foreach (var o in otros)
+                {
+                    subtotalOtros += o.Total;
+
+                    filasOtros += $@"
+<tr>
+    <td class='center'>{itemOtros}</td>
+    <td class='center'>{o.Quantity}</td>
+    <td class='center'>UND</td>
+    <td colspan='2'>{o.Item.Service?.Name}</td>
+    <td class='right'>{o.Total:0.00}</td>
+</tr>";
+
+                    itemOtros++;
+                }
+
+                tablaOtros = $@"
+<br>
+
+<table class='servicios-table'>
+
+<tr>
+    <td colspan='6' class='servicios-title'>OTROS</td>
+</tr>
+
+<tr class='servicios-head'>
+    <th>ITEM</th>
+    <th>CANT</th>
+    <th>UND</th>
+    <th colspan='2'>DESCRIPCION</th>
+    <th>SUB TOTAL</th>
+</tr>
+
+{filasOtros}
+
+<tr>
+    <td colspan='5' class='right'><b>Sub total</b></td>
+    <td class='right'><b>{subtotalOtros:0.00}</b></td>
+</tr>
+
+</table>";
+            }
+
+            // 🔥 RETURN FINAL
             return $@"
 <style>
 .servicios-table {{
@@ -2396,22 +2526,30 @@ body {{
 </tr>
 
 </table>
+
+{tablaOtros}
 ";
         }
 
-        private string GenerarOtrosDemo()
+        private string GenerarOtrosDemo(VehicleBudgetDetailDto data)
         {
-            return @"
-<style>
+            var otros = data.Items
+                .Where(i => i.Service != null && i.Service.IsThird)
+                .ToList();
 
+            if (!otros.Any())
+                return ""; // no mostrar sección si no hay
+
+            var sb = new StringBuilder();
+
+            sb.Append(@"
+<style>
 .otros-table {
     width: 100%;
     border-collapse: collapse;
     font-size: 11px;
     margin-top: 10px;
 }
-
-/* TITULO */
 .otros-title {
     background: #507FC2;
     color: white;
@@ -2419,35 +2557,26 @@ body {{
     font-weight: bold;
     border: 1px solid black !important;
 }
-
-/* CABECERA */
 .otros-head th {
     border: 1px solid black;
     padding: 4px;
     text-align: center;
     font-weight: bold;
 }
-
-/* FILAS */
 .otros-table td {
     padding: 4px;
     border-bottom: 1px solid #dcdcdc;
 }
-
-/* ALIGN */
 .center { text-align: center; }
 .right { text-align: right; }
-
 </style>
 
 <table class='otros-table'>
 
-<!-- TITULO -->
 <tr>
     <td colspan='6' class='otros-title'>OTROS</td>
 </tr>
 
-<!-- CABECERA -->
 <tr class='otros-head'>
     <th>ITEM</th>
     <th>CANT</th>
@@ -2455,48 +2584,37 @@ body {{
     <th colspan='2'>DESCRIPCION</th>
     <th>SUB TOTAL</th>
 </tr>
+");
 
-<!-- ITEMS -->
+            int item = 1;
+            decimal subtotal = 0;
+
+            foreach (var o in otros)
+            {
+                subtotal += o.TotalPrice;
+
+                sb.Append($@"
 <tr>
-    <td class='center'>1</td>
-    <td class='center'>1</td>
+    <td class='center'>{item}</td>
+    <td class='center'>{o.Quantity}</td>
     <td class='center'>UND</td>
-    <td colspan='2'>MATERIALES DE TALLER (desengrasantes, solventes que no dañen las piezas de su auto)</td>
-    <td class='right'>60.00</td>
+    <td colspan='2'>{o.Service?.Name}</td>
+    <td class='right'>{o.TotalPrice:0.00}</td>
 </tr>
+");
+                item++;
+            }
 
-<tr>
-    <td class='center'>2</td>
-    <td class='center'>1</td>
-    <td class='center'>UND</td>
-    <td colspan='2'>LAVADO DE VEHICULO</td>
-    <td class='right'>30.00</td>
-</tr>
-
-<tr>
-    <td class='center'>3</td>
-    <td class='center'>1</td>
-    <td class='center'>UND</td>
-    <td colspan='2'>MOVILIDAD DE TRAER REPUESTO ORIGINAL A TALLER</td>
-    <td class='right'>28.00</td>
-</tr>
-
-<tr>
-    <td class='center'>4</td>
-    <td class='center'>1</td>
-    <td class='center'>UND</td>
-    <td colspan='2'>MOVILIDAD DE RECOJO Y ENTREGA DE VEHICULO A DOMICILIO</td>
-    <td class='right'>40.00</td>
-</tr>
-
-<!-- SUBTOTAL -->
+            sb.Append($@"
 <tr>
     <td colspan='5' class='right'><b>Sub total</b></td>
-    <td class='right'><b>158.00</b></td>
+    <td class='right'><b>{subtotal:0.00}</b></td>
 </tr>
 
 </table>
-";
+");
+
+            return sb.ToString();
         }
 
 

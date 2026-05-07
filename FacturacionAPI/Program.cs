@@ -62,19 +62,19 @@ builder.Services.AddCors(options =>
 
 var context = new CustomAssemblyLoadContext();
 
-var dllPath = Path.Combine(
-    Directory.GetCurrentDirectory(),
-    "wkhtmltopdf",
-    "libwkhtmltox.dll"
-);
-
-//var env = builder.Environment;
 //var dllPath = Path.Combine(
-//    env.ContentRootPath,
-//    "wwwroot",
+//    Directory.GetCurrentDirectory(),
 //    "wkhtmltopdf",
 //    "libwkhtmltox.dll"
 //);
+
+var env = builder.Environment;
+var dllPath = Path.Combine(
+    env.ContentRootPath,
+    "wwwroot",
+    "wkhtmltopdf",
+    "libwkhtmltox.dll"
+);
 
 context.LoadUnmanagedLibrary(dllPath);
 

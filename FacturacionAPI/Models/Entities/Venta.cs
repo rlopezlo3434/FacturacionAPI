@@ -33,11 +33,12 @@ namespace FacturacionAPI.Models.Entities
         public string? EnlaceCdr { get; set; }
         public bool IsAnnulled { get; set; } = false;
         public bool UsadoParaDescuento { get; set; } = false;
-
+        public string? Cond_venta { get; set; }
         public int? EstablishmentId { get; set; }
         public Establishment Establishment { get; set; }
 
         public MetodoPago MetodoPago { get; set; }
         public ICollection<VentaDetalle> Detalles { get; set; } = new List<VentaDetalle>();
+        public List<VentaCuota>? Cuotas { get; set; }
     }
 }

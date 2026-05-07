@@ -22,11 +22,12 @@
         public decimal Subtotal { get; set; }
         public decimal Igv { get; set; }
         public decimal Total { get; set; }
+        public string? Cond_venta { get; set; }
 
         public string? Observaciones { get; set; }
 
         public List<VentaDetalleItemDto?> Detalles { get; set; }
-
+        public List<Models.Entities.VentaCuota> Cuotas { get; set; }
         public string? Pdf { get; set; }
         public string? Xml { get; set; }
         public string? Cdr { get; set; }

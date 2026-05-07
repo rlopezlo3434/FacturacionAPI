@@ -193,6 +193,8 @@ namespace FacturacionAPI.Services
                 detraccionMonto = request.detraccion_total ??
                     Math.Round(total * (request.detraccion_porcentaje ?? 12) / 100, 2);
             }
+            //Cond_venta = request.tipo_condicion_pago?.Split('_').Take(2).Aggregate((a, b) => $"{a}_{b}"),
+
             // 🔥 CREAS LA VENTA (SIN GUARDAR)
             var venta = new Venta
             {
@@ -214,9 +216,18 @@ namespace FacturacionAPI.Services
                 Anio = request.items[0].anio,
                 Placa = request.items[0].placa,
                 Detraccion = request.detraccion,
+                Cond_venta = request.tipo_condicion_pago?.Split('_').Take(2).Aggregate((a, b) => $"{a}_{b}"),
                 DetraccionPorcentaje = request.detraccion_porcentaje,
                 DetraccionMonto = request.detraccion_total,
                 DetraccionTipo = request.detraccion_tipo,
+                Cuotas = request.tipo_condicion_pago != "CONTADO"
+                        ? request.cuotas.Select(c => new Models.Entities.VentaCuota
+                        {
+                            NumeroCuota = c.Cuota,
+                            FechaPago = c.FechaPago,
+                            Importe = c.Importe
+                        }).ToList()
+                        : new List<Models.Entities.VentaCuota>(),
                 Detalles = request.items.Select(i => new VentaDetalle
                 {
                     Codigo = i.code,
@@ -229,7 +240,17 @@ namespace FacturacionAPI.Services
                     Total = Math.Round(i.value * i.cantidad, 2)
                 }).ToList()
             };
+            var ventaAlCredito = new List<object>();
 
+            if (request.tipo_condicion_pago != "CONTADO")
+            {
+                ventaAlCredito = request.cuotas.Select(c => new
+                {
+                    cuota = c.Cuota,
+                    fecha_de_pago = c.FechaPago.ToString("dd-MM-yyyy"),
+                    importe = c.Importe
+                }).ToList<object>();
+            }
             // 🔹 ENVÍO A NUBEFACT
             var json = JsonSerializer.Serialize(new
             {
@@ -249,7 +270,7 @@ namespace FacturacionAPI.Services
                 total_gravada = totalGravada,
                 enviar_automaticamente_a_la_sunat = true,
                 enviar_automaticamente_al_cliente = false,
-
+                venta_al_credito = ventaAlCredito,
                 moneda = 1,
                 items
             });
@@ -433,6 +454,7 @@ namespace FacturacionAPI.Services
         {
             var venta = await _context.Ventas
                 .Include(v => v.Detalles)
+                .Include(v => v.Cuotas)
                 .FirstOrDefaultAsync(v => v.Id == ventaId);
 
             if (venta == null)
@@ -460,7 +482,7 @@ namespace FacturacionAPI.Services
                 Subtotal = venta.TotalGravada,
                 Igv = venta.TotalIgv,
                 Total = venta.Total,
-
+                Cond_venta = venta.Cond_venta,
                 Observaciones = venta.Observaciones,
 
                 Detalles = venta.Detalles.Select(d => new VentaDetalleItemDto
@@ -474,7 +496,14 @@ namespace FacturacionAPI.Services
                     Igv = d.Igv,
                     Total = d.Total
                 }).ToList(),
-
+                Cuotas = venta.Cond_venta != "CONTADO"
+                        ? venta.Cuotas.Select(c => new Models.Entities.VentaCuota
+                        {
+                            NumeroCuota = c.NumeroCuota,
+                            FechaPago = c.FechaPago,
+                            Importe = c.Importe
+                        }).ToList()
+                        : new List<Models.Entities.VentaCuota>(),
                 Pdf = venta.EnlacePdf,
                 Xml = venta.EnlaceXml,
                 Cdr = venta.EnlaceCdr
@@ -673,6 +702,8 @@ namespace FacturacionAPI.Services
                                      {
                                          BudgetItemId = i.Id,
                                          IntakeCode = i.VehicleBudgetItem.VehicleBudget.Code,
+                                         ClienteNombre = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Client.Names,
+                                         ClienteNumero = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Client.DocumentIdentificationNumber,
                                          Brand = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Brand.Name,
                                          Model = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Model.Name,
                                          Anio = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Year,

@@ -3,7 +3,8 @@
     public class InvoiceSelectableItemDto
     {
         public int BudgetItemId { get; set; }
-
+        public string? ClienteNombre { get; set; }
+        public string? ClienteNumero { get; set; }
         public string BudgetCode { get; set; } = null!;
 
         public string IntakeCode { get; set; } = null!;

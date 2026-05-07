@@ -295,7 +295,8 @@ namespace FacturacionAPI.Services
                         Service = i.ServiceMasterId == null ? null : new CatalogItemDto
                         {
                             Id = i.ServiceMaster!.Id,
-                            Name = i.ServiceMaster.Name
+                            Name = i.ServiceMaster.Name,
+                            IsThird = i.ServiceMaster.IsThird, 
                         },
                         ServicePackage = i.ServicePackageId == null ? null : new CatalogItemDto
                         {
@@ -387,6 +388,7 @@ namespace FacturacionAPI.Services
                         Service = i.ServiceMasterId == null ? null : new CatalogItemDto
                         {
                             Id = i.ServiceMaster!.Id,
+                            IsThird = i.ServiceMaster.IsThird,
                             Name = i.ServiceMaster.Name
                         },
                         ServicePackage = i.ServicePackageId == null ? null : new CatalogItemDto

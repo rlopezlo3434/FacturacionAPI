@@ -41,6 +41,7 @@ namespace FacturacionAPI.Services
         public async Task<List<VehicleIntakeListDto>> GetIntakesAsync()
         {
             var result = await _context.VehicleIntakes
+                .Where(x => !x.IsDeleted)
                 .Include(x => x.Vehicle)
                     .ThenInclude(v => v.Brand)
                 .Include(x => x.Vehicle)
@@ -54,7 +55,7 @@ namespace FacturacionAPI.Services
                     PickupAddress = x.PickupAddress,
                     MileageKm = x.MileageKm,
                     CreatedAt = x.CreatedAt,
-                    IsActive = true, // ✅ cuando tengas campo real: x.IsActive
+                    IsActive = !x.IsDeleted, // ✅ cuando tengas campo real: x.IsActive
 
                     Vehicle = new VehicleIntakeVehicleDto
                     {
@@ -83,6 +84,28 @@ namespace FacturacionAPI.Services
             return result;
         }
 
+        public async Task<(bool Success, string Message)> DeleteVehicleIntake(int intakeId)
+        {
+            var intake = await _context.VehicleIntakes
+                .FirstOrDefaultAsync(x => x.Id == intakeId && !x.IsDeleted);
+
+            if (intake == null)
+                return (false, "El internamiento no existe o ya fue eliminado");
+
+            // 🔴 Validar si tiene presupuesto activo
+            bool hasBudget = await _context.VehicleBudgets
+                .AnyAsync(b => b.VehicleIntakeId == intakeId && b.IsActive);
+
+            if (hasBudget)
+                return (false, "No se puede eliminar el internamiento porque ya tiene un presupuesto asociado");
+
+            // ✅ Soft delete
+            intake.IsDeleted = true;
+
+            await _context.SaveChangesAsync();
+
+            return (true, "Internamiento eliminado correctamente");
+        }
         public async Task<(bool Success, string Message)> CreateVehicleIntakeAsync(CreateVehicleIntakeDto dto, List<IFormFile>? images, List<IFormFile>? diagrams)
         {
             var vehicle = await _context.Vehicles.FirstOrDefaultAsync(x => x.Id == dto.VehicleId);

@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using Microsoft.Win32;
+using FacturacionAPI.Data;
 
 namespace FacturacionAPI.Controllers
 {
@@ -20,12 +21,16 @@ namespace FacturacionAPI.Controllers
     {
         private readonly HttpClient _httpClient;
         private readonly FacturacionService _facturacionService;
+
+        private readonly SistemaVentasDbContext _context;
+
         //private readonly string _nubefactUrl = "https://api.nubefact.com/api/v1/9a1cbb4b-c878-48d6-8aa5-5996ac27408b";
         //private readonly string _token = "cf09b4ee1e3a42a4a8ef9a83d6a87d8346d94e2386ae41cb81cd3c6e748ad142";
-        public FacturacionController(FacturacionService facturacionService, HttpClient httpClient)
+        public FacturacionController(FacturacionService facturacionService, HttpClient httpClient, SistemaVentasDbContext context)
         {
             _facturacionService = facturacionService;
-            _httpClient = httpClient;   
+            _httpClient = httpClient;
+            _context = context;
         }
 
         [Authorize]
@@ -654,6 +659,93 @@ namespace FacturacionAPI.Controllers
             var nombreArchivo = $"ReporteDiario_{DateTime.Now:yyyyMMdd}.xlsx";
 
             return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombreArchivo);
+        }
+
+        [HttpGet("reporte-ventas-resumen")]
+        public async Task<IActionResult> ReporteVentasResumen(DateTime fechaInicio)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
+            var fechaInicioMes = new DateTime(fechaInicio.Year, fechaInicio.Month, 1);
+            var fechaFinMes = fechaInicioMes.AddMonths(1).AddDays(-1);
+
+            var ventas = await _context.Ventas
+                .Where(v => v.EstablishmentId == establishmentId
+                         && v.FechaEmision.Date >= fechaInicioMes
+                         && v.FechaEmision.Date <= fechaFinMes
+                         && !v.IsAnnulled)
+                .ToListAsync();
+
+            using var package = new ExcelPackage();
+            var worksheet = package.Workbook.Worksheets.Add("Ventas");
+
+            int row = 1;
+
+            // CABECERA
+            worksheet.Cells[row, 1].Value = "Tipo Doc";
+            worksheet.Cells[row, 2].Value = "Serie";
+            worksheet.Cells[row, 3].Value = "Número";
+            worksheet.Cells[row, 4].Value = "Fecha Emisión";
+            worksheet.Cells[row, 5].Value = "Fecha Vencimiento";
+            worksheet.Cells[row, 6].Value = "Cliente Documento";
+            worksheet.Cells[row, 7].Value = "Cliente Nombre";
+            worksheet.Cells[row, 8].Value = "Total Gravada";
+            worksheet.Cells[row, 9].Value = "IGV";
+            worksheet.Cells[row, 10].Value = "Total";
+            worksheet.Cells[row, 11].Value = "Moneda";
+
+            using (var range = worksheet.Cells[row, 1, row, 11])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            row++;
+
+            foreach (var v in ventas)
+            {
+                worksheet.Cells[row, 1].Value = v.TipoComprobante;
+                worksheet.Cells[row, 2].Value = v.Serie;
+                worksheet.Cells[row, 3].Value = v.Numero;
+
+                worksheet.Cells[row, 4].Value = v.FechaEmision;
+                worksheet.Cells[row, 5].Value = v.FechaEmision; // vencimiento = emisión
+
+                worksheet.Cells[row, 6].Value = v.ClienteDocumento;
+                worksheet.Cells[row, 7].Value = v.ClienteNombre;
+
+                worksheet.Cells[row, 8].Value = v.TotalGravada;
+                worksheet.Cells[row, 9].Value = v.TotalIgv;
+                worksheet.Cells[row, 10].Value = v.Total;
+
+                worksheet.Cells[row, 11].Value = "S"; // 🔥 puedes hacerlo dinámico luego
+
+                row++;
+            }
+
+            // FORMATO FECHAS
+            worksheet.Column(4).Style.Numberformat.Format = "dd/MM/yyyy";
+            worksheet.Column(5).Style.Numberformat.Format = "dd/MM/yyyy";
+
+            // FORMATO MONEDA
+            worksheet.Column(8).Style.Numberformat.Format = "#,##0.00";
+            worksheet.Column(9).Style.Numberformat.Format = "#,##0.00";
+            worksheet.Column(10).Style.Numberformat.Format = "#,##0.00";
+
+            // EXTRAS PRO
+            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+            worksheet.Cells[1, 1, row - 1, 11].AutoFilter = true;
+            worksheet.View.FreezePanes(2, 1);
+
+            var excelBytes = package.GetAsByteArray();
+            var nombreArchivo = $"ReporteVentas_{DateTime.Now:yyyyMMdd}.xlsx";
+
+            return File(excelBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                nombreArchivo);
         }
 
         [HttpPost("create-from-intake/{intakeId}")]

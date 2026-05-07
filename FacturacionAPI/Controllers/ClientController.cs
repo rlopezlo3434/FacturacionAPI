@@ -3,6 +3,8 @@ using FacturacionAPI.Models.Entities;
 using FacturacionAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OfficeOpenXml;
+using System.ComponentModel;
 
 namespace FacturacionAPI.Controllers
 {
@@ -233,6 +235,72 @@ namespace FacturacionAPI.Controllers
             {
                 descuentoAplicado = descuento
             });
+        }
+
+        [Authorize]
+        [HttpGet("reporte-clientes")]
+        public async Task<IActionResult> ReporteClientes()
+        {
+            ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial;
+
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
+            var clientes = await _clientService.GetClientByEstablishment(establishmentId);
+
+            using var package = new ExcelPackage();
+            var worksheet = package.Workbook.Worksheets.Add("Clientes");
+
+            int row = 1;
+
+            // CABECERA
+            worksheet.Cells[row, 1].Value = "ID";
+            worksheet.Cells[row, 2].Value = "Nombres";
+            worksheet.Cells[row, 3].Value = "Tipo Documento";
+            worksheet.Cells[row, 4].Value = "Nro Documento";
+            worksheet.Cells[row, 5].Value = "Email";
+            worksheet.Cells[row, 6].Value = "Teléfono Principal";
+            worksheet.Cells[row, 7].Value = "Dirección Principal";
+            worksheet.Cells[row, 8].Value = "Activo";
+            worksheet.Cells[row, 9].Value = "Marketing";
+
+            using (var range = worksheet.Cells[row, 1, row, 9])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            row++;
+
+            foreach (var cliente in clientes)
+            {
+                var telefonoPrincipal = cliente.Numbers?
+                    .FirstOrDefault(x => x.IsPrimary)?.Number;
+
+                var direccionPrincipal = cliente.Addresses?
+                    .FirstOrDefault(x => x.IsPrimary)?.Address;
+
+                worksheet.Cells[row, 1].Value = cliente.Id;
+                worksheet.Cells[row, 2].Value = cliente.Names;
+                worksheet.Cells[row, 3].Value = cliente.DocumentIdentificationType?.Name;
+                worksheet.Cells[row, 4].Value = cliente.DocumentIdentificationNumber;
+                worksheet.Cells[row, 5].Value = cliente.Email ?? "";
+                worksheet.Cells[row, 6].Value = telefonoPrincipal ?? "";
+                worksheet.Cells[row, 7].Value = direccionPrincipal ?? "";
+                worksheet.Cells[row, 8].Value = cliente.IsActive ? "Sí" : "No";
+                worksheet.Cells[row, 9].Value = cliente.AcceptsMarketing ? "Sí" : "No";
+
+                row++;
+            }
+
+            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+
+            var excelBytes = package.GetAsByteArray();
+            var nombreArchivo = $"ReporteClientes_{DateTime.Now:yyyyMMdd}.xlsx";
+
+            return File(excelBytes,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                nombreArchivo);
         }
 
     }

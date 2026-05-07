@@ -24,7 +24,8 @@ namespace FacturacionAPI.Services
                     Code = x.Code,
                     Name = x.Name,
                     Price = x.Price,
-                    IsActive = x.IsActive
+                    IsActive = x.IsActive,
+                    IsThird = x.IsThird
                 })
                 .ToListAsync();
         }
@@ -45,6 +46,7 @@ namespace FacturacionAPI.Services
                 Name = dto.Name.Trim(),
                 Price = dto.Price,
                 IsActive = true,
+                IsThird = dto.IsThird,
                 CreatedAt = DateTime.Now
             };
 
@@ -63,6 +65,7 @@ namespace FacturacionAPI.Services
             service.Name = dto.Name.Trim();
             service.Price = dto.Price;
             service.IsActive = dto.IsActive;
+            service.IsThird = dto.IsThird;
             service.UpdatedAt = DateTime.Now;
 
             _context.ServicesMasters.Update(service);

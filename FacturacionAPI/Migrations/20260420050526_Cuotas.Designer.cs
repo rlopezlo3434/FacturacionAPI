@@ -4,6 +4,7 @@ using FacturacionAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    partial class SistemaVentasDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260420050526_Cuotas")]
+    partial class Cuotas
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -363,7 +365,7 @@ namespace FacturacionAPI.Migrations
                     b.Property<int>("EstablishmentId")
                         .HasColumnType("int");
 
-                    b.Property<int?>("Gender")
+                    b.Property<int>("Gender")
                         .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
@@ -1343,9 +1345,6 @@ namespace FacturacionAPI.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("CodigoHash")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Cond_venta")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("Detraccion")
