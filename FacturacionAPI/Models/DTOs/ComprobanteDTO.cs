@@ -24,6 +24,7 @@ namespace FacturacionAPI.Models.DTOs
         public string? cond_venta { get; set; }
         public decimal? detraccion_porcentaje { get; set; }
         public decimal? detraccion_total { get; set; }
+        public string? vehiculo_placa { get; set; }
 
     }
 

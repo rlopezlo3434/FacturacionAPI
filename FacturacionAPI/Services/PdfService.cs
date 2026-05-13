@@ -123,14 +123,16 @@ namespace FacturacionAPI.Services
             {
                 GlobalSettings =
                 {
-                    PaperSize = PaperKind.A4
+                    PaperSize = PaperKind.A4,
+                    Margins = new MarginSettings { Top = 8, Bottom = 8, Left = 8, Right = 8, Unit = Unit.Millimeters }
                 },
                 Objects =
                 {
                     new ObjectSettings
                     {
                         HtmlContent = html,
-                        WebSettings = { DefaultEncoding = "utf-8" }
+                        WebSettings = { DefaultEncoding = "utf-8" },
+                        LoadSettings = { BlockLocalFileAccess = false }
                     }
                 }
             };
@@ -682,58 +684,74 @@ body {{
 
         private string GenerarBloqueConformidad(VehicleIntakeDetailDto data)
         {
+            var observaciones = !string.IsNullOrWhiteSpace(data?.Observations)
+    ? data.Observations
+    : "Sin observaciones";
             var sb = new StringBuilder();
 
-            sb.Append(@"
+            sb.Append($@"
 <style>
-    .conf-section {
+    .conf-section {{
         margin-top: 15px;
         font-family: Arial, sans-serif;
         font-size: 11px;
-    }
+    }}
 
-    .conf-header {
+    .conf-header {{
         background: #2f3b63;
         color: white;
         font-weight: bold;
         padding: 5px;
         margin-bottom: 5px;
-    }
+    }}
 
-    .conf-table {
+    .conf-table {{
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 10px;
-    }
+    }}
 
-    .conf-table td {
+    .conf-table td {{
         padding: 5px;
         vertical-align: middle;
-    }
+    }}
 
-    .line2 {
+    .line2 {{
         border-bottom: 1px solid #000;
         width: 100%;
         height: 18px;
-    }
+    }}
 
-    .box-terms {
+    .box-terms {{
         width: 100%;
         border: 1px solid #000;
         border-collapse: collapse;
-    }
+    }}
 
-    .box-terms td {
+    .box-terms td {{
         border: 1px solid #000;
         padding: 8px;
-        font-size: 10px;
+        font-size: 8px;
         text-align: justify;
         vertical-align: top;
-    }
+    }}
 </style>
 
 <div class='conf-section'>
 
+    <div style='margin-bottom:10px;'>
+
+        <div class='conf-header'>Observaciones</div>
+
+        <table class='box-terms'>
+            <tr>
+               <td style='min-height:60px;'>
+                {observaciones}
+    </td>
+            </tr>
+        </table>
+
+    </div>
     <div class='conf-header'>Conformidad - Cliente o Representante</div>
 
     <table class='conf-table'>
@@ -856,7 +874,18 @@ body {{
                 : "CRÉDITO";
 
             var condicionVenta = ObtenerCondicionVentaTexto(condicionCodigo);
+            var fechaVencimiento = data?.FechaEmision ?? DateTime.Now;
 
+            if (!string.IsNullOrEmpty(condicionCodigo) &&
+                condicionCodigo.StartsWith("CREDITO_DIAS_"))
+            {
+                var diasTexto = condicionCodigo.Replace("CREDITO_DIAS_", "");
+
+                if (int.TryParse(diasTexto, out int dias))
+                {
+                    fechaVencimiento = fechaVencimiento.AddDays(dias);
+                }
+            }
             return $@"
                     <style>
 
@@ -997,7 +1026,7 @@ body {{
                             <td>{condicionVenta}</td>
 
                             <td class='label-box'>F. VENC. <small>:</small></td>
-                            <td>{data?.FechaEmision:dd/MM/yyyy}</td>
+                            <td>{fechaVencimiento:dd/MM/yyyy}</td>
                         </tr>
                     </table>
                     ";
@@ -1338,14 +1367,16 @@ body {{
         <style>
             body {{
                 margin: 0;
+                padding: 0;
                 font-family: Arial;
-                line-height: 1.4;
-                letter-spacing: 0.3px;
+                font-size: 11px;
+                line-height: 1.3;
+                letter-spacing: 0.2px;
             }}
 
             .header {{
                 width: 100%;
-                margin-bottom: 10px;
+                margin-bottom: 6px;
             }}
 
             .header img {{
@@ -1359,13 +1390,6 @@ body {{
 
             .page:last-child {{
                 page-break-after: auto;
-            }}
-
-            .titulo-doc {{
-                text-align: center;
-                font-weight: bold;
-                font-size: 2rem;
-                margin: 15px 0;
             }}
         </style>
     </head>
@@ -1437,24 +1461,25 @@ body {{
 
             if (data.Serie != null && !data.Serie.StartsWith("B") && data.Detraccion)
             {
+                string tdStyle = "border:1px solid black; padding:4px; font-size:10px;";
+                string tdCenter = "border:1px solid black; padding:4px; font-size:10px; text-align:center;";
                 htmlDetraccion = $@"
-    <table style='width:100%; border-collapse:collapse; font-size:11px; margin-top:8px;'>
+    <table style='width:100%; border-collapse:collapse; font-size:10px; margin-top:8px; border:1px solid black;'>
         <tr>
-            <td colspan='5' style='border:1px solid black; background:#507FC2; color:white; font-weight:bold; text-align:center; padding:5px;'>
+            <td colspan='4' style='{tdStyle} background:#507FC2; color:white; font-weight:bold; text-align:center;'>
                 Detalle de Detracciones:
             </td>
         </tr>
-
-        <tr style='font-weight:bold; text-align:center;'>
-            <td style='border:1px solid black;'>Cod,Bien o Servicio de Detracción</td>
-            <td style='border:1px solid black;'>% de Detracción</td>
-            <td style='border:1px solid black;'>Monto Detracción</td>
+        <tr>
+            <td colspan='4' style='{tdStyle}'>
+                Operación Sujeta al Sistema de Pago de Obligaciones Tributarias D. Leg. 940 &nbsp;&nbsp;&nbsp; Nro Cta. Bco de la Nacion : &nbsp; 0.00
+            </td>
         </tr>
-
-        <tr style='text-align:center;'>
-            <td style='border:1px solid black;'>{ObtenerCodigoDetraccion(data.DetraccionTipo)}</td>
-            <td style='border:1px solid black;'>{data.DetraccionPorcentaje:0.##}%</td>
-            <td style='border:1px solid black;'>S/ {data.DetraccionMonto:0.00}</td>
+        <tr>
+            <td style='{tdCenter}'>Cod.Bien o Servicio de Detraccion : <b>{ObtenerCodigoDetraccion(data.DetraccionTipo)}</b></td>
+            <td style='{tdCenter}'>Oper. de Detraccion : <b>01</b></td>
+            <td style='{tdCenter}'>% de Detraccion : <b>{data.DetraccionPorcentaje:0.##}</b></td>
+            <td style='{tdCenter}'>Monto Detraccion : <b>S/ {data.DetraccionMonto:0.00}</b></td>
         </tr>
     </table>";
             }
@@ -1475,8 +1500,8 @@ body {{
             }
             var totalEnLetras = Convertir(data.Total);
 
-            int totalFilasDeseadas = data.Detraccion ? 23 : 26;
-            int filasFaltantes = totalFilasDeseadas - items.Count;
+            int totalFilasDeseadas = 15;
+            int filasFaltantes = Math.Max(0, totalFilasDeseadas - items.Count);
 
             for (int i = 0; i < filasFaltantes; i++)
             {
@@ -1613,13 +1638,35 @@ body {{
                             </tr>
                         </thead>
                         <tbody>
-                            {string.Join("", data.Cuotas.Select(c => $@"
+                            {string.Join("", data.Cuotas.Select((c, index) =>
+                                {
+                                    DateTime fechaPago = data.FechaEmision;
+
+                                    // Caso 1: Crédito a días (ejemplo: CREDITO_DIAS_7)
+                                    if (!string.IsNullOrEmpty(data.Cond_venta) &&
+                                        data.Cond_venta.StartsWith("CREDITO_DIAS_"))
+                                    {
+                                        var diasTexto = data.Cond_venta.Replace("CREDITO_DIAS_", "");
+
+                                        if (int.TryParse(diasTexto, out int dias))
+                                        {
+                                            fechaPago = data.FechaEmision.AddDays(dias);
+                                        }
+                                    }
+                                    // Caso 2: Crédito en cuotas (1 cuota por mes)
+                                    else if (data.Cond_venta == "CREDITO_CUOTAS")
+                                    {
+                                        fechaPago = data.FechaEmision.AddMonths(index + 1);
+                                    }
+
+                                    return $@"
                                 <tr>
                                     <td>{c.NumeroCuota}</td>
-                                    <td>{data.FechaEmision:dd/MM/yyyy}</td>
+                                    <td>{fechaPago:dd/MM/yyyy}</td>
                                     <td style='text-align:right;'>S/ {c.Importe:N2}</td>
                                 </tr>
-                            "))}
+                            ";
+                             }))}
                         </tbody>
                     </table>
                     "
@@ -1873,7 +1920,9 @@ body {{
                 }}
 
                 </style>
-
+                <div>
+                   <strong>FECHA CREACIÓN:</strong> {data.CreatedAt:dd/MM/yyyy HH:mm}
+                </div>
                 <table class='section'>
 
                 <!-- CABECERA -->
@@ -1955,8 +2004,11 @@ body {{
         private string GenerarRepuestosDemo(VehicleBudgetDetailDto data)
         {
             var repuestos = data.Items
-                .Where(i => i.Product != null) // 🔥 Solo productos
+                .Where(i => i.Product != null)
                 .ToList();
+
+            bool tieneDescuento = repuestos.Any(i => i.Discount > 0);
+            int totalColumnas = tieneDescuento ? 7 : 6;
 
             int itemIndex = 1;
             string filas = "";
@@ -1964,6 +2016,9 @@ body {{
             foreach (var item in repuestos)
             {
                 var descripcion = GetDescripcion(item);
+                string celdaDescuento = tieneDescuento
+                    ? $"<td class='right'>{(item.Discount > 0 ? item.Discount.ToString("0.00") : "-")}</td>"
+                    : "";
 
                 filas += $@"
         <tr>
@@ -1972,14 +2027,17 @@ body {{
             <td class='center'>UND</td>
             <td>{descripcion}</td>
             <td class='right'>{item.UnitPrice:0.00}</td>
+            {celdaDescuento}
             <td class='right'>{item.TotalPrice:0.00}</td>
         </tr>";
 
                 itemIndex++;
             }
 
-            // 🔥 TOTAL
             decimal totalGeneral = repuestos.Sum(x => x.TotalPrice);
+
+            string colDescuentoHeader = tieneDescuento ? "<th>DSCTO</th>" : "";
+            string colspanTotal = tieneDescuento ? "6" : "5";
 
             return $@"
 <style>
@@ -2024,7 +2082,7 @@ body {{
 <table class='repuestos-table'>
 
 <tr>
-    <td colspan='6' class='repuestos-title'>REPUESTOS</td>
+    <td colspan='{totalColumnas}' class='repuestos-title'>REPUESTOS</td>
 </tr>
 
 <tr class='repuestos-head'>
@@ -2033,13 +2091,14 @@ body {{
     <th>UND</th>
     <th>DESCRIPCION</th>
     <th>P.UNIT</th>
+    {colDescuentoHeader}
     <th>SUB TOTAL</th>
 </tr>
 
 {filas}
 
 <tr>
-    <td colspan='5' class='right'><b>Sub total</b></td>
+    <td colspan='{colspanTotal}' class='right'><b>Sub total</b></td>
     <td class='right'><b>{totalGeneral:0.00}</b></td>
 </tr>
 
@@ -2181,6 +2240,10 @@ body {{
                 .Where(i => i.ServicePackageId == null && i.Service != null && i.Service.IsThird == false)
                 .ToList();
 
+            bool tieneDescuento = independientes.Any(i => i.Discount > 0);
+            int totalColumnas = tieneDescuento ? 7 : 6;
+            string colspanTotal = tieneDescuento ? "6" : "5";
+
             int itemIndex = 1;
             string filas = "";
 
@@ -2191,7 +2254,8 @@ body {{
                 string nombreGrupo = package?.Name ?? "SERVICIO";
                 decimal totalGrupo = grupo.Sum(x => x.TotalPrice);
 
-                // 🔹 Fila principal
+                string celdasDsctoGrupo = tieneDescuento ? "<td></td>" : "";
+
                 filas += $@"
                     <tr>
                         <td class='center'>{itemIndex}</td>
@@ -2199,13 +2263,14 @@ body {{
                         <td class='center'>UND</td>
                         <td class='servicio-main'>{nombreGrupo}</td>
                         <td></td>
+                        {celdasDsctoGrupo}
                         <td class='right'>{totalGrupo:0.00}</td>
                     </tr>";
 
-                // 🔹 Detalle
                 foreach (var item in grupo)
                 {
                     var descripcion = GetDescripcion(item);
+                    string celdaDetalleDscto = tieneDescuento ? "<td></td>" : "";
                     filas += $@"
                     <tr>
                         <td></td>
@@ -2213,6 +2278,7 @@ body {{
                         <td></td>
                         <td class='servicio-detalle'>{descripcion}</td>
                         <td></td>
+                        {celdaDetalleDscto}
                         <td></td>
                     </tr>";
                 }
@@ -2223,6 +2289,9 @@ body {{
             foreach (var item in independientes)
             {
                 var descripcion = GetDescripcion(item);
+                string celdaDscto = tieneDescuento
+                    ? $"<td class='right'>{(item.Discount > 0 ? item.Discount.ToString("0.00") : "-")}</td>"
+                    : "";
 
                 filas += $@"
                 <tr>
@@ -2230,16 +2299,19 @@ body {{
                     <td class='center'>{item.Quantity}</td>
                     <td class='center'>UND</td>
                     <td class='servicio-main'>{descripcion}</td>
-                    <td class='right'></td>
+                    <td class='right'>{item.UnitPrice:0.00}</td>
+                    {celdaDscto}
                     <td class='right'>{item.TotalPrice:0.00}</td>
                 </tr>";
 
                 itemIndex++;
             }
-            // 🔥 TOTAL GENERAL
+
             decimal totalGeneral = data.Items
                                         .Where(i => i.Service != null && i.Service.IsThird == false)
                                         .Sum(x => x.TotalPrice);
+
+            string colDescuentoHeader = tieneDescuento ? "<th>DSCTO</th>" : "";
 
             return $@"
             <style>
@@ -2283,7 +2355,7 @@ body {{
             <table class='servicios-table'>
 
             <tr>
-                <td colspan='6' class='servicios-title'>SERVICIOS</td>
+                <td colspan='{totalColumnas}' class='servicios-title'>SERVICIOS</td>
             </tr>
 
             <tr class='servicios-head'>
@@ -2292,13 +2364,14 @@ body {{
                 <th>UND</th>
                 <th>DESCRIPCION</th>
                 <th>P.UNIT</th>
+                {colDescuentoHeader}
                 <th>SUB TOTAL</th>
             </tr>
 
             {filas}
 
             <tr>
-                <td colspan='5' class='right'><b>Sub total</b></td>
+                <td colspan='{colspanTotal}' class='right'><b>Sub total</b></td>
                 <td class='right'><b>{totalGeneral:0.00}</b></td>
             </tr>
 

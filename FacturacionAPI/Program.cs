@@ -81,6 +81,8 @@ context.LoadUnmanagedLibrary(dllPath);
 builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new PdfTools()));
 
 builder.Services.AddScoped<PdfService>();
+builder.Services.AddScoped<ProveedorService>();
+builder.Services.AddScoped<CompraService>();
 
 var app = builder.Build();
 

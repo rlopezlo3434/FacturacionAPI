@@ -149,6 +149,23 @@ namespace FacturacionAPI.Services
             };
 
         }
+
+        private string ObtenerCondicionVentaTexto(string? condicion)
+        {
+            if (condicion != null && condicion.StartsWith("CREDITO_DIAS_"))
+            {
+                var dias = condicion.Replace("CREDITO_DIAS_", "");
+                return $"CRÉDITO A {dias} DÍAS";
+            }
+
+            return condicion switch
+            {
+                "CONTADO" => "CONTADO",
+                "CREDITO_CUOTAS" => "CRÉDITO EN CUOTAS",
+                _ => "CONTADO"
+            };
+        }
+
         public async Task<object> RegistrarVentaAsync(VentaRequest request, int establishmentId)
         {
             var establishment = await _context.Establishment.FindAsync(establishmentId);
@@ -214,9 +231,9 @@ namespace FacturacionAPI.Services
                 Marca = request.items[0].brand,
                 Modelo = request.items[0].model,
                 Anio = request.items[0].anio,
-                Placa = request.items[0].placa,
+                Placa = string.IsNullOrWhiteSpace(request.vehiculo_placa) ? request.items[0].placa : request.vehiculo_placa,
                 Detraccion = request.detraccion,
-                Cond_venta = request.tipo_condicion_pago?.Split('_').Take(2).Aggregate((a, b) => $"{a}_{b}"),
+                Cond_venta = request.tipo_condicion_pago, // request.tipo_condicion_pago?.Split('_').Take(2).Aggregate((a, b) => $"{a}_{b}"),
                 DetraccionPorcentaje = request.detraccion_porcentaje,
                 DetraccionMonto = request.detraccion_total,
                 DetraccionTipo = request.detraccion_tipo,
