@@ -285,7 +285,19 @@ body {{
 
                     <div class='box-row'>
                         <div> Hora </div>
-                        <div class='line'>{data?.CreatedAt:HH: mm}</div>
+                        <div class= 'line' >{data?.CreatedAt:HH: mm}</div>
+                    </div>
+
+                    <div class='box-row'>
+                        <div style='margin-bottom:4px;'>Nivel de Gasolina</div>
+                        <div style='display:table; width:100%;'>
+                            <div style='display:table-cell; text-align:center; font-weight:bold; font-size:10px;'>E</div>
+                            {GenerarCeldaCombustible(data?.FuelLevel, 1)}
+                            {GenerarCeldaCombustible(data?.FuelLevel, 2)}
+                            {GenerarCeldaCombustible(data?.FuelLevel, 3)}
+                            {GenerarCeldaCombustible(data?.FuelLevel, 4)}
+                            <div style='display:table-cell; text-align:center; font-weight:bold; font-size:10px;'>F</div>
+                        </div>
                     </div>
                 </div>
             </td>
@@ -293,6 +305,14 @@ body {{
     </table>
 </div>
 ";
+        }
+
+        private string GenerarCeldaCombustible(int? fuelLevel, int celda)
+        {
+            // fuelLevel: 1=E, 2=1/4, 3=1/2, 4=3/4, pero el campo va de 1 a 4
+            bool activa = fuelLevel.HasValue && fuelLevel.Value >= celda;
+            string color = activa ? "#4caf50" : "#e0e0e0";
+            return $"<div style='display:table-cell; background:{color}; border:1px solid #999; width:22px; height:14px;'></div>";
         }
 
         private string GenerarBloqueInventario(VehicleIntakeDetailDto data)

@@ -38,6 +38,7 @@ namespace FacturacionAPI.Models.DTOs
         public int Mode { get; set; }
         public string? PickupAddress { get; set; }
         public int MileageKm { get; set; }
+        public int? FuelLevel { get; set; }
         public string? Observations { get; set; }
         public string? Services { get; set; }
         public DateTime CreatedAt { get; set; }

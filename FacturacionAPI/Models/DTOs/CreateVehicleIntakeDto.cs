@@ -9,6 +9,7 @@
         public string? PickupAddress { get; set; }
 
         public int MileageKm { get; set; }
+        public int? FuelLevel { get; set; }
         public string? Observations { get; set; }
         public string? Services { get; set; }
 

@@ -20,6 +20,7 @@ namespace FacturacionAPI.Models.Entities
         public string? PickupAddress { get; set; } // solo si es recojo
 
         public int MileageKm { get; set; } // kilometraje al ingreso
+        public int? FuelLevel { get; set; }
 
         [MaxLength(500)]
         public string? Observations { get; set; }
