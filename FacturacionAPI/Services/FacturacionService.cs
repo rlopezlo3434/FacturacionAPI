@@ -173,17 +173,41 @@ namespace FacturacionAPI.Services
             }
 
             var establishment = await _context.Establishment.FindAsync(establishmentId);
-            decimal descuento = request.porcentajePromo ?? 0m;
-            // 🔹 Construir items
+            //decimal descuento = request.porcentajePromo ?? 0m;
+            //// 🔹 Construir items
+            //var items = request.items.Select(i =>
+            //{
+            //    decimal precioOriginal = i.value;
+
+            //    decimal precioConDescuento = precioOriginal * (1 - (descuento / 100m));
+            //    decimal valorSinIgv = Math.Round(precioConDescuento / FACTOR_IGV, 2);
+            //    decimal subtotal = Math.Round(valorSinIgv * i.cantidad, 2);
+            //    decimal igv = Math.Round(subtotal * IGV_PERCENT / 100, 2);
+            //    decimal total = Math.Round(precioConDescuento * i.cantidad, 2);
+
+            //    return new
+            //    {
+            //        unidad_de_medida = "NIU",
+            //        codigo = i.code,
+            //        descripcion = i.description,
+            //        cantidad = i.cantidad,
+            //        valor_unitario = valorSinIgv,
+            //        precio_unitario = precioConDescuento,
+            //        subtotal,
+            //        tipo_de_igv = 1,
+            //        igv,
+            //        total
+            //    };
+            //}).ToList();
+
             var items = request.items.Select(i =>
             {
-                decimal precioOriginal = i.value;
+                decimal precio = i.value; // ya viene con descuento aplicado
 
-                decimal precioConDescuento = precioOriginal * (1 - (descuento / 100m));
-                decimal valorSinIgv = Math.Round(precioConDescuento / FACTOR_IGV, 2);
+                decimal valorSinIgv = Math.Round(precio / FACTOR_IGV, 2);
                 decimal subtotal = Math.Round(valorSinIgv * i.cantidad, 2);
                 decimal igv = Math.Round(subtotal * IGV_PERCENT / 100, 2);
-                decimal total = Math.Round(precioConDescuento * i.cantidad, 2);
+                decimal total = Math.Round(precio * i.cantidad, 2);
 
                 return new
                 {
@@ -192,7 +216,7 @@ namespace FacturacionAPI.Services
                     descripcion = i.description,
                     cantidad = i.cantidad,
                     valor_unitario = valorSinIgv,
-                    precio_unitario = precioConDescuento,
+                    precio_unitario = precio,
                     subtotal,
                     tipo_de_igv = 1,
                     igv,
