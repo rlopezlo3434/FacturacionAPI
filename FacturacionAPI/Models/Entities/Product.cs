@@ -17,10 +17,16 @@ namespace FacturacionAPI.Models.Entities
         public string? SerialCode { get; set; } // Ejm P240
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal Price { get; set; }
+        public decimal? Price { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
-        public decimal Cost { get; set; }
+        public decimal? Cost { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? PriceDolar { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? CostDolar { get; set; }
 
         public int? UnitMeasureId { get; set; }
         public UnitMeasure UnitMeasure { get; set; } = null!;

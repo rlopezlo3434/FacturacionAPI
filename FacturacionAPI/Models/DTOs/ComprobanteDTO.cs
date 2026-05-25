@@ -15,7 +15,7 @@ namespace FacturacionAPI.Models.DTOs
         public string? direccion { get; set; }
         public string? serie { get; set; }
         public string? cliente_tipo_documento { get; set; }
-        public MetodoPago? metodo_pago { get; set; }
+        public string? metodo_pago { get; set; }
         public string? tipo_condicion_pago { get; set; } // CONTADO / CREDITO_15 / etc
         public List<VentaCuota> cuotas { get; set; }
         public DateTime? fecha_emision { get; set; }
@@ -25,7 +25,7 @@ namespace FacturacionAPI.Models.DTOs
         public decimal? detraccion_porcentaje { get; set; }
         public decimal? detraccion_total { get; set; }
         public string? vehiculo_placa { get; set; }
-
+        public bool no_migrar_sunat { get; set; } = false;
     }
 
     public class VentaCuota

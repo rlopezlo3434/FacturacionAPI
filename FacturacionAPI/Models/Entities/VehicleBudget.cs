@@ -31,6 +31,7 @@ namespace FacturacionAPI.Models.Entities
 
         public string? Notes { get; set; }
         public string? Extras { get; set; }
+        public string? Moneda { get; set; } = "PEN";
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? ApprovedAt { get; set; }
 

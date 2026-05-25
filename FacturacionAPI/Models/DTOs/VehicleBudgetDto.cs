@@ -7,6 +7,7 @@ namespace FacturacionAPI.Models.DTOs
         public int VehicleIntakeId { get; set; }
         public string? Notes { get; set; }
         public string? Extras { get; set; }
+        public string? Moneda { get; set; }
         public List<VehicleBudgetItemCreateDto> Items { get; set; } = new();
     }
 
@@ -32,6 +33,7 @@ namespace FacturacionAPI.Models.DTOs
         public bool IsApproved { get; set; }
         public bool IsOfficial { get; set; }
         public decimal Total { get; set; }
+        public string? Moneda { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 
@@ -45,6 +47,7 @@ namespace FacturacionAPI.Models.DTOs
         public decimal Total { get; set; }
         public string? Notes { get; set; }
         public string? Extras { get; set; }
+        public string? Moneda { get; set; }
         public DateTime CreatedAt { get; set; }
 
         public VehicleIntakeDetailDto2 VehicleIntake { get; set; }

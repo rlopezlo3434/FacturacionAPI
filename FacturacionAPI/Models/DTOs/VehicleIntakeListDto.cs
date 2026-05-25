@@ -41,6 +41,7 @@ namespace FacturacionAPI.Models.DTOs
         public int? FuelLevel { get; set; }
         public string? Observations { get; set; }
         public string? Services { get; set; }
+        public string? NombreEncargadoRecojo { get; set; }
         public DateTime CreatedAt { get; set; }
 
         public VehicleMiniDto2 Vehicle { get; set; } = null!;

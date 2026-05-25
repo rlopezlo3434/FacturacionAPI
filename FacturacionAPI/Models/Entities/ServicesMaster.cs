@@ -16,6 +16,7 @@ namespace FacturacionAPI.Models.Entities
 
         public bool IsActive { get; set; } = true;
         public bool IsThird { get; set; } = false;
+        public bool IsDiscount { get; set; } = false;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? UpdatedAt { get; set; }
     }

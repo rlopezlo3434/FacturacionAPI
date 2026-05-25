@@ -88,15 +88,17 @@ namespace FacturacionAPI.Services
             // -----------------------------
             // CLASIFICAR MOVIMIENTO
             // -----------------------------
-            string tipoMovimiento = venta.MetodoPago switch
-            {
-                MetodoPago.Efectivo => "INGRESO",
-                MetodoPago.Yape => "EGRESO",
-                MetodoPago.Plin => "EGRESO",
-                MetodoPago.Tarjeta => "EGRESO",
-                MetodoPago.Transferencia => "EGRESO",
-                _ => "EGRESO"
-            };
+            //string tipoMovimiento = venta.MetodoPago switch
+            //{
+            //    MetodoPago.Efectivo => "INGRESO",
+            //    MetodoPago.Yape => "EGRESO",
+            //    MetodoPago.Plin => "EGRESO",
+            //    MetodoPago.Tarjeta => "EGRESO",
+            //    MetodoPago.Transferencia => "EGRESO",
+            //    _ => "EGRESO"
+            //};
+
+            string tipoMovimiento = "test";
 
             var movimiento = new CajaMovimiento
             {

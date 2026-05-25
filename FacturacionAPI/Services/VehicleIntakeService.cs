@@ -132,6 +132,7 @@ namespace FacturacionAPI.Services
                 Observations = dto.Observations,
                 Services = dto.Services,
                 FuelLevel = dto.FuelLevel,
+                NombreEncargadoRecojo = dto.NombreEncargadoRecojo,
                 CreatedAt = DateTime.Now
             };
 
@@ -291,6 +292,7 @@ namespace FacturacionAPI.Services
             intake.Observations = dto.Observations;
             intake.Services = dto.Services;
             intake.FuelLevel = dto.FuelLevel;
+            intake.NombreEncargadoRecojo = dto.NombreEncargadoRecojo;
 
             // 🔥 2. ACTUALIZAR INVENTARIO (REEMPLAZAR)
             var inventoryItems = JsonSerializer.Deserialize<List<CreateVehicleIntakeInventoryItemDto>>(dto.InventoryItems);
@@ -380,6 +382,7 @@ namespace FacturacionAPI.Services
                 CreatedAt = intake.CreatedAt,
                 Services = intake.Services,
                 FuelLevel = intake.FuelLevel,
+                NombreEncargadoRecojo = intake.NombreEncargadoRecojo,
                 Vehicle = new VehicleMiniDto2
                 {
                     Id = intake.Vehicle.Id,

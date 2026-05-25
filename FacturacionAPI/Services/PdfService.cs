@@ -290,14 +290,28 @@ body {{
 
                     <div class='box-row'>
                         <div style='margin-bottom:4px;'>Nivel de Gasolina</div>
-                        <div style='display:table; width:100%;'>
-                            <div style='display:table-cell; text-align:center; font-weight:bold; font-size:10px;'>E</div>
-                            {GenerarCeldaCombustible(data?.FuelLevel, 1)}
-                            {GenerarCeldaCombustible(data?.FuelLevel, 2)}
-                            {GenerarCeldaCombustible(data?.FuelLevel, 3)}
-                            {GenerarCeldaCombustible(data?.FuelLevel, 4)}
-                            <div style='display:table-cell; text-align:center; font-weight:bold; font-size:10px;'>F</div>
-                        </div>
+                        <table style='width:100%; border-collapse:collapse; table-layout:fixed;'>
+                            <tr>
+                                {GenerarCeldaCombustible(data?.FuelLevel, 1)}
+                                {GenerarCeldaCombustible(data?.FuelLevel, 2)}
+                                {GenerarCeldaCombustible(data?.FuelLevel, 3)}
+                                {GenerarCeldaCombustible(data?.FuelLevel, 4)}
+                                {GenerarCeldaCombustible(data?.FuelLevel, 5)}
+                                {GenerarCeldaCombustible(data?.FuelLevel, 6)}
+                                {GenerarCeldaCombustible(data?.FuelLevel, 7)}
+                                {GenerarCeldaCombustible(data?.FuelLevel, 8)}
+                            </tr>
+                            <tr style='font-size:8px; font-weight:bold;'>
+                                <td style='text-align:center;'>E</td>
+                                <td></td>
+                                <td style='text-align:center;'>¼</td>
+                                <td></td>
+                                <td style='text-align:center;'>½</td>
+                                <td></td>
+                                <td style='text-align:center;'>¾</td>
+                                <td style='text-align:center;'>F</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
             </td>
@@ -309,10 +323,9 @@ body {{
 
         private string GenerarCeldaCombustible(int? fuelLevel, int celda)
         {
-            // fuelLevel: 1=E, 2=1/4, 3=1/2, 4=3/4, pero el campo va de 1 a 4
             bool activa = fuelLevel.HasValue && fuelLevel.Value >= celda;
             string color = activa ? "#4caf50" : "#e0e0e0";
-            return $"<div style='display:table-cell; background:{color}; border:1px solid #999; width:22px; height:14px;'></div>";
+            return $"<td style='background:{color}; border:1px solid #999; height:14px; width:12.5%;'></td>";
         }
 
         private string GenerarBloqueInventario(VehicleIntakeDetailDto data)
@@ -467,7 +480,7 @@ body {{
                         // Si está presente => ✔
                         // Si no está => vacío
                         //var mark = item.IsPresent ? "✔" : "✘";
-                        var mark = item.IsPresent ? "✔" : "";
+                        var mark = item.IsPresent ? "✔" : "✘";
 
 
                         sb.Append($@"
@@ -781,7 +794,7 @@ body {{
             <td style='width:20%;'><div class='line2'>" + DateTime.Now.ToString("dd/MM/yyyy") + @"</div></td>
 
             <td style='width:10%;'>Nombre:</td>
-            <td style='width:30%;'><div class='line2'></div></td>
+            <td style='width:30%;'><div class='line2'>" + (data?.NombreEncargadoRecojo ?? "") + @"</div></td>
 
             <td style='width:10%;'>Firma:</td>
             <td style='width:20%;'><div class='line2'></div></td>
@@ -932,12 +945,13 @@ body {{
 
                     .label-box {{
                         background: #507FC2;
-                        color: black;
+                        color: white;
                         font-weight: bold;
                         width: 120px;
                     }}
 
                     .label-box small {{
+                        color:white
                         float: right;
                     }}
 
@@ -1487,7 +1501,7 @@ body {{
     <table style='width:100%; border-collapse:collapse; font-size:10px; margin-top:8px; border:1px solid black;'>
         <tr>
             <td colspan='4' style='{tdStyle} background:#507FC2; color:white; font-weight:bold; text-align:center;'>
-                Detalle de Detracciones:
+                DETALLE DE DETRACCIONES
             </td>
         </tr>
         <tr>
@@ -1596,6 +1610,7 @@ body {{
 
 .totales-head td {{
     background: #507FC2;
+    color: white;
     font-weight: bold;
     text-align: center;
 }}
@@ -1619,6 +1634,7 @@ body {{
 
 .bancos-head {{
     background: #507FC2;
+    color: white;
     text-align: center;
     font-weight: bold;
 }}
@@ -1626,12 +1642,12 @@ body {{
 
 <table class='detalle-table'>
     <tr>
-        <th style='width:8%;'>ITEM</th>
-        <th style='width:12%;'>CANTIDAD</th>
-        <th style='width:12%;'>UND</th>
-        <th style='width:40%;'>DESCRIPCIÓN</th>
-        <th style='width:14%;'>VALOR</th>
-        <th style='width:14%;'>IMPORTE</th>
+        <th style='width:8%; color: white;'>ITEM</th>
+        <th style='width:12%; color: white;'>CANTIDAD</th>
+        <th style='width:12%; color: white;'>UND</th>
+        <th style='width:40%; color: white;'>DESCRIPCIÓN</th>
+        <th style='width:14%; color: white;'>VALOR</th>
+        <th style='width:14%; color: white;'>IMPORTE</th>
     </tr>
 
     {filas}
@@ -2257,7 +2273,11 @@ body {{
                 .GroupBy(i => i.ServicePackageId);
 
             var independientes = data.Items
-                .Where(i => i.ServicePackageId == null && i.Service != null && i.Service.IsThird == false)
+                .Where(i => i.ServicePackageId == null && i.Service != null && i.Service.IsThird == false && i.Service.IsDiscount == false)
+                .ToList();
+
+            var descuentos = data.Items
+                .Where(i => i.Service != null && i.Service.IsDiscount == true)
                 .ToList();
 
             bool tieneDescuento = independientes.Any(i => i.Discount > 0);
@@ -2327,6 +2347,23 @@ body {{
                 itemIndex++;
             }
 
+            // Filas de descuento general (al final, antes del total)
+            string filasDescuento = "";
+            foreach (var desc in descuentos)
+            {
+                string celdaDsctoVacia = tieneDescuento ? "<td></td>" : "";
+                filasDescuento += $@"
+                <tr style='background:#fff3cd;'>
+                    <td class='center'>-</td>
+                    <td class='center'>{desc.Quantity}</td>
+                    <td class='center'>UND</td>
+                    <td class='servicio-main' style='color:#b8860b;'>⬇ {desc.Service!.Name}</td>
+                    <td class='right' style='color:#b8860b;'>{Math.Abs(desc.UnitPrice):0.00}</td>
+                    {celdaDsctoVacia}
+                    <td class='right' style='color:#c0392b; font-weight:bold;'>-{Math.Abs(desc.TotalPrice):0.00}</td>
+                </tr>";
+            }
+
             decimal totalGeneral = data.Items
                                         .Where(i => i.Service != null && i.Service.IsThird == false)
                                         .Sum(x => x.TotalPrice);
@@ -2389,6 +2426,8 @@ body {{
             </tr>
 
             {filas}
+
+            {filasDescuento}
 
             <tr>
                 <td colspan='{colspanTotal}' class='right'><b>Sub total</b></td>
@@ -2727,6 +2766,7 @@ body {{
             decimal igv = subtotal * 0.18m;
             decimal total = subtotal + igv;
 
+            var extrasHtml = "";
             var extrasLista = data
                 .Where(x => !string.IsNullOrWhiteSpace(x.Extras))
                 .SelectMany(x => x.Extras!
@@ -2734,6 +2774,9 @@ body {{
                     .Select(e => e.Trim()))
                 .Distinct()
                 .ToList();
+
+            if (extrasLista.Any())
+                extrasHtml = string.Join("", extrasLista.Select(x => $"<div>• {x}</div>"));
 
             var observacionesHtml = "";
             var notas = data2.Notes;
@@ -2818,6 +2861,17 @@ body {{
 
                     </table>
                     {observacionesHtml}
+
+                    <!-- OBSERVACIONES PRESUPUESTO -->
+                    <div class='obs-title'>OBSERVACIONES</div>
+
+                    <div class='obs-box'>
+                    El presente documento <b>NO ESTA CERRADO AL 100%</b>, porque está sujeto a variaciones ya que pueden faltar cargos adicionales, ya sea en servicios o repuestos, los mismos que se pondrán en conocimiento del cliente
+                    </div>
+
+                    <div class='obs-footer'>
+                    {extrasHtml}
+                    </div>
                     ";
         }
 

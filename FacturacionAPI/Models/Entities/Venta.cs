@@ -37,7 +37,7 @@ namespace FacturacionAPI.Models.Entities
         public int? EstablishmentId { get; set; }
         public Establishment Establishment { get; set; }
 
-        public MetodoPago MetodoPago { get; set; }
+        public string? MetodoPago { get; set; }
         public ICollection<VentaDetalle> Detalles { get; set; } = new List<VentaDetalle>();
         public List<VentaCuota>? Cuotas { get; set; }
     }

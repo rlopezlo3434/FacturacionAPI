@@ -31,5 +31,7 @@
         public bool Invoiced { get; set; } = false;
 
         public int? ServicePackageId { get; set; }
+
+        public string? Moneda { get; set; }
 }
 }

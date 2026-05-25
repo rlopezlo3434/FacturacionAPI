@@ -28,6 +28,8 @@ namespace FacturacionAPI.Services
                     Quantity = x.Quantity,
                     SerialCode = x.SerialCode,
                     Price = x.Price, // ✅
+                    CostDolar = x.CostDolar,
+                    PriceDolar = x.PriceDolar,
                     IsMultiBrand = x.IsMultiBrand,
                     Brand = x.Brand == null ? null : new CatalogItemDto
                     {
@@ -54,11 +56,17 @@ namespace FacturacionAPI.Services
             if (dto.Quantity < 0)
                 return (false, "La cantidad no puede ser negativa.");
 
-            if (dto.Price < 0)
+            if (dto.Price.HasValue && dto.Price < 0)
                 return (false, "El precio no puede ser negativo.");
-            
-            if (dto.Cost < 0)
+
+            if (dto.Cost.HasValue && dto.Cost < 0)
                 return (false, "El costo no puede ser negativo.");
+
+            if (dto.PriceDolar.HasValue && dto.PriceDolar < 0)
+                return (false, "El precio en dólar no puede ser negativo.");
+
+            if (dto.CostDolar.HasValue && dto.CostDolar < 0)
+                return (false, "El costo en dólar no puede ser negativo.");
             
             if (dto.IsMultiBrand)
                 dto.BrandId = null;
@@ -88,8 +96,10 @@ namespace FacturacionAPI.Services
                 Quantity = dto.Quantity,
                 SerialCode = dto.SerialCode?.Trim(),
                 Cost = dto.Cost,
+                CostDolar = dto.CostDolar,
                 UnitMeasureId = dto.UnitMeasureId,
                 Price = dto.Price, // ✅
+                PriceDolar = dto.PriceDolar,
                 IsMultiBrand = dto.IsMultiBrand,
                 BrandId = dto.IsMultiBrand ? null : dto.BrandId,
                 IsActive = true,
@@ -114,11 +124,17 @@ namespace FacturacionAPI.Services
             if (dto.Quantity < 0)
                 return (false, "La cantidad no puede ser negativa.");
 
-            if (dto.Price < 0)
+            if (dto.Price.HasValue && dto.Price < 0)
                 return (false, "El precio no puede ser negativo.");
 
-            if (dto.Cost < 0)
+            if (dto.Cost.HasValue && dto.Cost < 0)
                 return (false, "El costo no puede ser negativo.");
+
+            if (dto.PriceDolar.HasValue && dto.PriceDolar < 0)
+                return (false, "El precio en dólar no puede ser negativo.");
+
+            if (dto.CostDolar.HasValue && dto.CostDolar < 0)
+                return (false, "El costo en dólar no puede ser negativo.");
 
             if (dto.IsMultiBrand)
                 dto.BrandId = null;
@@ -144,8 +160,10 @@ namespace FacturacionAPI.Services
             product.Quantity = dto.Quantity;
             product.SerialCode = dto.SerialCode?.Trim();
             product.Cost = dto.Cost;
+            product.CostDolar = dto.CostDolar;
             product.UnitMeasureId = dto.UnitMeasureId;
-            product.Price = dto.Price; 
+            product.Price = dto.Price;
+            product.PriceDolar = dto.PriceDolar;
             product.IsMultiBrand = dto.IsMultiBrand;
             product.BrandId = dto.IsMultiBrand ? null : dto.BrandId;
             product.UpdatedAt = DateTime.Now;

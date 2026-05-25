@@ -5,6 +5,7 @@
         public int Id { get; set; }
         public string Name { get; set; } = default!;
         public bool IsThird { get; set; }
+        public bool IsDiscount { get; set; }
     }
 
     public class ModelDto

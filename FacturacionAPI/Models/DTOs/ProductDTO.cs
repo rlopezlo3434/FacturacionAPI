@@ -1,4 +1,4 @@
-﻿using FacturacionAPI.Models.Entities;
+using FacturacionAPI.Models.Entities;
 
 namespace FacturacionAPI.Models.DTOs
 {
@@ -8,8 +8,10 @@ namespace FacturacionAPI.Models.DTOs
         public int Quantity { get; set; }
         public string? SerialCode { get; set; }
         public int? UnitMeasureId { get; set; }
-        public decimal Cost { get; set; }
-        public decimal Price { get; set; } // ✅ agregado
+        public decimal? Cost { get; set; }
+        public decimal? Price { get; set; }
+        public decimal? CostDolar { get; set; }
+        public decimal? PriceDolar { get; set; }
 
         public bool IsMultiBrand { get; set; }
         public int? BrandId { get; set; }
@@ -23,8 +25,10 @@ namespace FacturacionAPI.Models.DTOs
         public int Quantity { get; set; }
         public string? SerialCode { get; set; }
         public UnitMeasure? UnitMeasure { get; set; }
-        public decimal Cost { get; set; }
-        public decimal Price { get; set; } // ✅ agregado
+        public decimal? Cost { get; set; }
+        public decimal? Price { get; set; }
+        public decimal? CostDolar { get; set; }
+        public decimal? PriceDolar { get; set; }
 
         public bool IsMultiBrand { get; set; }
         public CatalogItemDto? Brand { get; set; }

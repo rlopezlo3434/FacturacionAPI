@@ -28,6 +28,7 @@ namespace FacturacionAPI.Services
                     IsApproved = x.IsApproved,
                     IsOfficial = x.IsOfficial,
                     Total = x.Total,
+                    Moneda = x.Moneda,
                     CreatedAt = x.CreatedAt
                 })
                 .ToListAsync();
@@ -53,28 +54,49 @@ namespace FacturacionAPI.Services
                 VehicleIntakeId = dto.VehicleIntakeId,
                 Notes = dto.Notes,
                 Extras = dto.Extras,
+                Moneda = string.IsNullOrWhiteSpace(dto.Moneda) ? "PEN" : dto.Moneda,
                 CreatedAt = DateTime.Now,
-                IsApproved = false,
+                IsApproved = true,
                 IsOfficial = false
             };
+
+            // Cargar los servicios con IsDiscount para evaluarlos en el loop
+            var serviceMasterIds = dto.Items
+                .Where(x => x.ServiceMasterId != null)
+                .Select(x => x.ServiceMasterId!.Value)
+                .Distinct()
+                .ToList();
+
+            var discountServiceIds = (await _context.ServicesMasters
+                .Where(x => serviceMasterIds.Contains(x.Id) && x.IsDiscount)
+                .Select(x => x.Id)
+                .ToListAsync()).ToHashSet();
 
             foreach (var item in dto.Items)
             {
                 if (item.Quantity <= 0)
                     return (false, "Cantidad inválida.");
 
-                if (item.UnitPrice < 0)
-                    return (false, "Precio inválido.");
+                bool esDescuento = item.ServiceMasterId != null && discountServiceIds.Contains(item.ServiceMasterId.Value);
 
-                if (item.Discount < 0)
-                    return (false, "Descuento inválido.");
+                decimal totalItem;
+                if (esDescuento)
+                {
+                    // Para descuentos: usar el valor absoluto de (unitPrice * quantity) como monto a restar
+                    totalItem = -Math.Abs(item.UnitPrice * item.Quantity);
+                }
+                else
+                {
+                    if (item.Discount < 0)
+                        return (false, "Descuento inválido.");
 
-                var gross = item.UnitPrice * item.Quantity;
+                    var gross = item.UnitPrice * item.Quantity;
 
-                if (item.Discount > gross)
-                    return (false, "El descuento no puede ser mayor al total del ítem.");
+                    if (item.Discount > gross)
+                        return (false, "El descuento no puede ser mayor al total del ítem.");
 
-                var totalItem = gross - item.Discount;
+                    totalItem = gross - item.Discount;
+                }
 
                 subtotal += totalItem;
 
@@ -84,16 +106,16 @@ namespace FacturacionAPI.Services
                     ProductId = item.ProductId,
                     ServiceMasterId = item.ServiceMasterId,
                     Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    Discount = item.Discount,   
+                    UnitPrice = Math.Abs(item.UnitPrice),
+                    Discount = 0,
                     TotalPrice = totalItem,
-                    IsApproved = false,
+                    IsApproved = true,
                     ServicePackageId = item.ServicePackageId
                 });
             }
 
             budget.SubTotal = subtotal;
-            budget.Total = subtotal; // ✅ luego puedes agregar IGV, descuento, etc
+            budget.Total = subtotal;
 
             _context.VehicleBudgets.Add(budget);
             await _context.SaveChangesAsync();
@@ -101,11 +123,101 @@ namespace FacturacionAPI.Services
             return (true, "Presupuesto creado correctamente.");
         }
 
+        // ✅ editar presupuesto
+        public async Task<(bool Success, string Message)> UpdateBudgetAsync(int budgetId, VehicleBudgetCreateDto dto)
+        {
+            if (dto.Items == null || dto.Items.Count == 0)
+                return (false, "El presupuesto debe tener al menos 1 item.");
+
+            var budget = await _context.VehicleBudgets
+                .FirstOrDefaultAsync(x => x.Id == budgetId && x.IsActive);
+
+            if (budget == null)
+                return (false, "Presupuesto no encontrado.");
+
+            // Eliminar items existentes directamente desde la BD para evitar conflictos de tracking
+            var existingItems = await _context.VehicleBudgetItems
+                .Where(x => x.VehicleBudgetId == budgetId)
+                .ToListAsync();
+
+            _context.VehicleBudgetItems.RemoveRange(existingItems);
+            await _context.SaveChangesAsync();
+
+            budget.Notes = dto.Notes;
+            budget.Extras = dto.Extras;
+            budget.Moneda = string.IsNullOrWhiteSpace(dto.Moneda) ? "PEN" : dto.Moneda;
+
+            var updateServiceIds = dto.Items
+                .Where(x => x.ServiceMasterId != null)
+                .Select(x => x.ServiceMasterId!.Value)
+                .Distinct()
+                .ToList();
+
+            var updateDiscountServiceIds = (await _context.ServicesMasters
+                .Where(x => updateServiceIds.Contains(x.Id) && x.IsDiscount)
+                .Select(x => x.Id)
+                .ToListAsync()).ToHashSet();
+
+            decimal subtotal = 0;
+            var newItems = new List<VehicleBudgetItem>();
+
+            foreach (var item in dto.Items)
+            {
+                if (item.Quantity <= 0)
+                    return (false, "Cantidad inválida.");
+
+                bool esDescuento = item.ServiceMasterId != null && updateDiscountServiceIds.Contains(item.ServiceMasterId.Value);
+
+                decimal totalItem;
+                if (esDescuento)
+                {
+                    totalItem = -Math.Abs(item.UnitPrice * item.Quantity);
+                }
+                else
+                {
+                    if (item.Discount < 0)
+                        return (false, "Descuento inválido.");
+
+                    var gross = item.UnitPrice * item.Quantity;
+
+                    if (item.Discount > gross)
+                        return (false, "El descuento no puede ser mayor al total del ítem.");
+
+                    totalItem = gross - item.Discount;
+                }
+
+                subtotal += totalItem;
+
+                newItems.Add(new VehicleBudgetItem
+                {
+                    VehicleBudgetId = budgetId,
+                    ItemType = (BudgetItemType)item.ItemType,
+                    ProductId = item.ProductId,
+                    ServiceMasterId = item.ServiceMasterId,
+                    Quantity = item.Quantity,
+                    UnitPrice = Math.Abs(item.UnitPrice),
+                    Discount = 0,
+                    TotalPrice = totalItem,
+                    IsApproved = true,
+                    ServicePackageId = item.ServicePackageId
+                });
+            }
+
+            budget.SubTotal = subtotal;
+            budget.Total = subtotal;
+
+            await _context.VehicleBudgetItems.AddRangeAsync(newItems);
+            await _context.SaveChangesAsync();
+
+            return (true, "Presupuesto actualizado correctamente.");
+        }
+
         public async Task<(bool Success, string Message)> ApproveBudgetItemsAsync(
     BudgetApprovalRequestDto dto)
         {
             var budget = await _context.VehicleBudgets
                 .Include(b => b.Items)
+                    .ThenInclude(i => i.ServiceMaster)
                 .FirstOrDefaultAsync(b => b.Id == dto.BudgetId && b.IsActive);
 
             if (budget == null)
@@ -118,18 +230,25 @@ namespace FacturacionAPI.Services
                 var item = budget.Items.FirstOrDefault(x => x.Id == itemDto.ItemId);
                 if (item == null) continue;
 
-                // ✅ actualizar valores editables
                 item.Quantity = itemDto.Quantity;
-                item.UnitPrice = itemDto.UnitPrice;
+                item.UnitPrice = Math.Abs(itemDto.UnitPrice);
                 item.IsApproved = itemDto.IsApproved;
 
-                var gross = item.Quantity * item.UnitPrice;
+                bool esDescuento = item.ServiceMaster?.IsDiscount == true;
 
-                var discount = itemDto.Discount < 0 ? 0 : itemDto.Discount;
-                if (discount > gross) discount = gross;
-
-                item.Discount = discount;
-                item.TotalPrice = gross - discount;
+                if (esDescuento)
+                {
+                    item.Discount = 0;
+                    item.TotalPrice = -Math.Abs(item.UnitPrice * item.Quantity);
+                }
+                else
+                {
+                    var gross = item.Quantity * item.UnitPrice;
+                    var discount = itemDto.Discount < 0 ? 0 : itemDto.Discount;
+                    if (discount > gross) discount = gross;
+                    item.Discount = discount;
+                    item.TotalPrice = gross - discount;
+                }
 
                 if (item.IsApproved)
                 {
@@ -137,10 +256,14 @@ namespace FacturacionAPI.Services
                 }
             }
 
-            // ✅ total solo de items aprobados
-            budget.Total = totalApproved;
+            // Recalcular desde todos los items del budget:
+            // - Servicios de descuento: siempre se aplican (TotalPrice negativo)
+            // - Resto: solo si están aprobados
+            budget.Total = budget.Items.Sum(i =>
+                (i.ServiceMaster != null && i.ServiceMaster.IsDiscount)
+                    ? i.TotalPrice
+                    : (i.IsApproved ? i.TotalPrice : 0));
 
-            // opcional: aprobado si hay al menos 1 item aprobado
             budget.IsApproved = budget.Items.Any(i => i.IsApproved);
 
             await _context.SaveChangesAsync();
@@ -239,6 +362,7 @@ namespace FacturacionAPI.Services
                     IsOfficial = x.IsOfficial,
                     Notes = x.Notes,
                     Extras = x.Extras,
+                    Moneda = x.Moneda,
                     SubTotal = x.SubTotal,
                     Total = x.Total,
                     CreatedAt = x.CreatedAt,
@@ -296,7 +420,8 @@ namespace FacturacionAPI.Services
                         {
                             Id = i.ServiceMaster!.Id,
                             Name = i.ServiceMaster.Name,
-                            IsThird = i.ServiceMaster.IsThird, 
+                            IsThird = i.ServiceMaster.IsThird,
+                            IsDiscount = i.ServiceMaster.IsDiscount,
                         },
                         ServicePackage = i.ServicePackageId == null ? null : new CatalogItemDto
                         {
@@ -332,6 +457,7 @@ namespace FacturacionAPI.Services
                     IsOfficial = x.IsOfficial,
                     Notes = x.Notes,
                     Extras = x.Extras,
+                    Moneda = x.Moneda,
                     SubTotal = x.SubTotal,
                     Total = x.Total,
                     CreatedAt = x.CreatedAt,
@@ -389,6 +515,7 @@ namespace FacturacionAPI.Services
                         {
                             Id = i.ServiceMaster!.Id,
                             IsThird = i.ServiceMaster.IsThird,
+                            IsDiscount = i.ServiceMaster.IsDiscount,
                             Name = i.ServiceMaster.Name
                         },
                         ServicePackage = i.ServicePackageId == null ? null : new CatalogItemDto

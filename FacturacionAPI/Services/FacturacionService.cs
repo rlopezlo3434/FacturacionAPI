@@ -170,8 +170,11 @@ namespace FacturacionAPI.Services
         {
             var establishment = await _context.Establishment.FindAsync(establishmentId);
 
+            // Si no migra a SUNAT se usa serie interna N001
+            var serieEfectiva = request.no_migrar_sunat ? "N001" : request.serie;
+
             var correlativo = await _context.Ventas
-                .Where(v => v.Serie == request.serie && v.EstablishmentId == establishmentId)
+                .Where(v => v.Serie == serieEfectiva && v.EstablishmentId == establishmentId)
                 .OrderByDescending(v => v.Numero)
                 .Select(v => v.Numero)
                 .FirstOrDefaultAsync();
@@ -216,7 +219,7 @@ namespace FacturacionAPI.Services
             var venta = new Venta
             {
                 TipoComprobante = request.tipo_de_comprobante == 2 ? "BOLETA" : "FACTURA",
-                Serie = request.serie,
+                Serie = serieEfectiva,
                 Numero = nuevoCorrelativo,
                 ClienteDocumento = request.cliente_numero,
                 ClienteNombre = request.cliente_nombre,
@@ -226,7 +229,7 @@ namespace FacturacionAPI.Services
                 Total = total,
                 Observaciones = request.observaciones,
                 FechaEmision = DateTime.Now,
-                MetodoPago = request.metodo_pago ?? MetodoPago.Efectivo,
+                MetodoPago = request.metodo_pago,
                 EstablishmentId = establishmentId,
                 Marca = request.items[0].brand,
                 Modelo = request.items[0].model,
@@ -268,13 +271,42 @@ namespace FacturacionAPI.Services
                     importe = c.Importe
                 }).ToList<object>();
             }
+            if (request.no_migrar_sunat)
+            {
+                // 🔥 GUARDADO LOCAL SIN SUNAT (serie N001)
+                _context.Ventas.Add(venta);
+                await _context.SaveChangesAsync();
+
+                var invoiceItemIdsLocal = request.items
+                    .Where(i => i.id != null)
+                    .Select(i => i.id)
+                    .ToList();
+
+                var invoiceItemsLocal = await _context.InvoicesItem
+                    .Where(ii => invoiceItemIdsLocal.Contains(ii.Id))
+                    .ToListAsync();
+
+                foreach (var item in invoiceItemsLocal)
+                    item.Invoiced = true;
+
+                await _context.SaveChangesAsync();
+
+                return new
+                {
+                    success = true,
+                    message = "Venta registrada localmente (no migrada a SUNAT)",
+                    ventaId = venta.Id,
+                    correlativo = $"{venta.Serie}-{venta.Numero}"
+                };
+            }
+
             // 🔹 ENVÍO A NUBEFACT
             var json = JsonSerializer.Serialize(new
             {
                 operacion = "generar_comprobante",
                 tipo_de_comprobante = request.tipo_de_comprobante,
                 sunat_transaction = 1,
-                serie = request.serie,
+                serie = serieEfectiva,
                 numero = nuevoCorrelativo,
                 cliente_tipo_de_documento = int.Parse(request.cliente_tipo_documento),
                 cliente_numero_de_documento = request.cliente_numero,
@@ -333,7 +365,6 @@ namespace FacturacionAPI.Services
             {
                 item.Invoiced = true;
             }
-
 
             await _context.SaveChangesAsync();
 
@@ -411,7 +442,7 @@ namespace FacturacionAPI.Services
                 EnlaceXml = "XML_FAKE_PARA_PRUEBAS",
                 EnlaceCdr = "CDR_FAKE_PARA_PRUEBAS",
                 FechaEmision = DateTime.Now,
-                MetodoPago = request.metodo_pago.ToString() == "CONTADO" ? request.metodo_pago.Value : MetodoPago.Efectivo,
+                MetodoPago = request.metodo_pago,
                 EstablishmentId = establishmentId,
                 Detalles = request.items.Select(i => new VentaDetalle
                 {
@@ -736,7 +767,8 @@ namespace FacturacionAPI.Services
                                          SubTotal = i.TotalPrice,
                                          Selected = false,
                                          Invoiced = i.Invoiced,
-                                         ServicePackageId = i.ServicePackageId
+                                         ServicePackageId = i.ServicePackageId,
+                                         Moneda = i.VehicleBudgetItem.VehicleBudget.Moneda
                                      })
                                      .ToListAsync();
             return items;
