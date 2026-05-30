@@ -44,9 +44,9 @@ namespace FacturacionAPI.Services
             }).ToList();
 
             // PrecioCompra ya incluye IGV → dividir para obtener subtotal e IGV
-            decimal total = detalles.Sum(d => d.PrecioCompra);
-            decimal subtotal = Math.Round(total / 1.18m, 2);
-            decimal igv = Math.Round(total - subtotal, 2);
+            decimal total = detalles.Sum(d => d.PrecioCompra * d.Cantidad);
+            //decimal subtotal = Math.Round(total / 1.18m, 2);
+            //decimal igv = Math.Round(total - subtotal, 2);
 
             var compra = new Compra
             {
@@ -56,13 +56,30 @@ namespace FacturacionAPI.Services
                 FechaDocumento = dto.FechaDocumento,
                 FechaCreacion = DateTime.UtcNow,
                 Moneda = dto.Moneda,
-                Subtotal = subtotal,
-                Igv = igv,
+                //Subtotal = subtotal,
+                //Igv = igv,
                 Total = total,
                 Detalles = detalles
             };
 
             _context.Compras.Add(compra);
+
+            if (dto.Moneda.Equals("DOLARES", StringComparison.OrdinalIgnoreCase) ||
+                dto.Moneda.Equals("USD", StringComparison.OrdinalIgnoreCase))
+            {
+                var productIds = dto.Detalles.Select(d => d.ProductId).Distinct().ToList();
+                var products = await _context.Products
+                    .Where(p => productIds.Contains(p.Id))
+                    .ToListAsync();
+
+                foreach (var detalle in dto.Detalles)
+                {
+                    var product = products.FirstOrDefault(p => p.Id == detalle.ProductId);
+                    if (product != null)
+                        product.CostDolar = detalle.PrecioCompra;
+                }
+            }
+
             await _context.SaveChangesAsync();
 
             return await GetByIdAsync(compra.Id) ?? MapToDto(compra);

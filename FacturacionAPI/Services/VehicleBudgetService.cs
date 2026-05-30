@@ -107,7 +107,7 @@ namespace FacturacionAPI.Services
                     ServiceMasterId = item.ServiceMasterId,
                     Quantity = item.Quantity,
                     UnitPrice = Math.Abs(item.UnitPrice),
-                    Discount = 0,
+                    Discount = item.Discount,
                     TotalPrice = totalItem,
                     IsApproved = true,
                     ServicePackageId = item.ServicePackageId
@@ -196,7 +196,7 @@ namespace FacturacionAPI.Services
                     ServiceMasterId = item.ServiceMasterId,
                     Quantity = item.Quantity,
                     UnitPrice = Math.Abs(item.UnitPrice),
-                    Discount = 0,
+                    Discount = item.Discount,
                     TotalPrice = totalItem,
                     IsApproved = true,
                     ServicePackageId = item.ServicePackageId

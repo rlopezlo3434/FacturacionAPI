@@ -252,6 +252,8 @@ body {{
                 <div class='row'>
                     <div class='label'>Modelo - Año</div>
                     <div class='line'>{data?.Vehicle?.Model?.Name ?? ""} - {data?.Vehicle?.Anio.ToString() ?? ""}</div>
+                    <div class=''>Placa</div>
+                    <div class='line'>{data?.Vehicle?.Plate ?? ""}</div>
                 </div>
 
                 <div class='row'>
@@ -2172,12 +2174,20 @@ body {{
                 .Where(i => i.Product != null && budgetItemIds.Contains(i.Id))
                 .ToList();
            
+            bool tieneDescuento = repuestos.Any(i => i.Discount > 0);
+            int totalColumnas = tieneDescuento ? 7 : 6;
+            string colDescuentoHeader = tieneDescuento ? "<th>DSCTO</th>" : "";
+            string colspanTotal = tieneDescuento ? "6" : "5";
+
             int itemIndex = 1;
             string filas = "";
 
             foreach (var item in repuestos)
             {
                 var descripcion = GetDescripcion(item);
+                string celdaDescuento = tieneDescuento
+                    ? $"<td class='right'>{(item.Discount > 0 ? item.Discount.ToString("0.00") : "-")}</td>"
+                    : "";
 
                 filas += $@"
         <tr>
@@ -2186,6 +2196,7 @@ body {{
             <td class='center'>UND</td>
             <td>{descripcion}</td>
             <td class='right'>{item.UnitPrice:0.00}</td>
+            {celdaDescuento}
             <td class='right'>{item.TotalPrice:0.00}</td>
         </tr>";
 
@@ -2238,7 +2249,7 @@ body {{
 <table class='repuestos-table'>
 
 <tr>
-    <td colspan='6' class='repuestos-title'>REPUESTOS</td>
+    <td colspan='{totalColumnas}' class='repuestos-title'>REPUESTOS</td>
 </tr>
 
 <tr class='repuestos-head'>
@@ -2247,13 +2258,14 @@ body {{
     <th>UND</th>
     <th>DESCRIPCION</th>
     <th>P.UNIT</th>
+    {colDescuentoHeader}
     <th>SUB TOTAL</th>
 </tr>
 
 {filas}
 
 <tr>
-    <td colspan='5' class='right'><b>Sub total</b></td>
+    <td colspan='{colspanTotal}' class='right'><b>Sub total</b></td>
     <td class='right'><b>{totalGeneral:0.00}</b></td>
 </tr>
 
@@ -2483,6 +2495,10 @@ body {{
                 .Where(i => i.Item.ServicePackageId == null)
                 .ToList();
 
+            bool tieneDescuento = serviciosNormales.Any(x => x.Item.Discount > 0);
+            string colDescuentoHeader = tieneDescuento ? "<th>DSCTO</th>" : "";
+            string colspanTotal = tieneDescuento ? "6" : "5";
+
             int itemIndex = 1;
             string filas = "";
 
@@ -2493,6 +2509,7 @@ body {{
 
                 string nombreGrupo = package?.Name ?? "SERVICIO";
                 decimal totalGrupo = grupo.Sum(x => x.Total);
+                string celdaDsctoGrupo = tieneDescuento ? "<td></td>" : "";
 
                 filas += $@"
 <tr>
@@ -2501,12 +2518,14 @@ body {{
     <td class='center'>UND</td>
     <td class='servicio-main'>{nombreGrupo}</td>
     <td></td>
+    {celdaDsctoGrupo}
     <td class='right'>{totalGrupo:0.00}</td>
 </tr>";
 
                 foreach (var item in grupo)
                 {
                     var descripcion = GetDescripcion(item.Item);
+                    string celdaDsctoDetalle = tieneDescuento ? "<td></td>" : "";
 
                     filas += $@"
 <tr>
@@ -2515,6 +2534,7 @@ body {{
     <td></td>
     <td class='servicio-detalle'>{descripcion}</td>
     <td></td>
+    {celdaDsctoDetalle}
     <td></td>
 </tr>";
                 }
@@ -2526,6 +2546,9 @@ body {{
             foreach (var item in independientes)
             {
                 var descripcion = GetDescripcion(item.Item);
+                string celdaDscto = tieneDescuento
+                    ? $"<td class='right'>{(item.Item.Discount > 0 ? item.Item.Discount.ToString("0.00") : "-")}</td>"
+                    : "";
 
                 filas += $@"
 <tr>
@@ -2533,15 +2556,18 @@ body {{
     <td class='center'>{item.Quantity}</td>
     <td class='center'>UND</td>
     <td class='servicio-main'>{descripcion}</td>
-    <td></td>
-    <td class='right'>{item.Total:0.00}</td>
+    <td class='right'>{item.Item.UnitPrice:0.00}</td>
+    {celdaDscto}
+    <td class='right'>{item.Total - item.Item.Discount:0.00}</td>
 </tr>";
 
                 itemIndex++;
             }
 
             // 🔥 TOTAL GENERAL SERVICIOS
-            decimal totalGeneral = serviciosNormales.Sum(x => x.Total);
+            decimal totalGeneral = serviciosNormales.Sum(x => x.Item.Discount > 0
+                ? x.Item.UnitPrice * x.Quantity - x.Item.Discount
+                : x.Total);
 
             // 🔥 TABLA OTROS
             string tablaOtros = "";
@@ -2638,7 +2664,7 @@ body {{
 <table class='servicios-table'>
 
 <tr>
-    <td colspan='6' class='servicios-title'>SERVICIOS</td>
+    <td colspan='{(tieneDescuento ? 7 : 6)}' class='servicios-title'>SERVICIOS</td>
 </tr>
 
 <tr class='servicios-head'>
@@ -2647,13 +2673,14 @@ body {{
     <th>UND</th>
     <th>DESCRIPCION</th>
     <th>P.UNIT</th>
+    {colDescuentoHeader}
     <th>SUB TOTAL</th>
 </tr>
 
 {filas}
 
 <tr>
-    <td colspan='5' class='right'><b>Sub total</b></td>
+    <td colspan='{colspanTotal}' class='right'><b>Sub total</b></td>
     <td class='right'><b>{totalGeneral:0.00}</b></td>
 </tr>
 
@@ -2761,7 +2788,7 @@ body {{
 
             decimal subtotal = allItems
                 .Where(i => workOrderMap.ContainsKey(i.Id))
-                .Sum(i => workOrderMap[i.Id] * i.UnitPrice);
+                .Sum(i => workOrderMap[i.Id] * i.UnitPrice - i.Discount);
 
             decimal igv = subtotal * 0.18m;
             decimal total = subtotal + igv;
