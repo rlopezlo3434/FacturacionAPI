@@ -18,6 +18,7 @@ namespace FacturacionAPI.Models.Entities
         public string? CodigoHash { get; set; }
         public string? EnlacePdf { get; set; }
         public bool IsAnnulled { get; set; } = false;
+        public bool EsPreVenta { get; set; } = false;
         public bool UsadoParaDescuento { get; set; } = false;
 
         public int? EstablishmentId { get; set; }

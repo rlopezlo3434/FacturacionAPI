@@ -27,6 +27,7 @@ namespace FacturacionAPI.Services
         {
             _context = context;
             _httpClient = httpClient;
+            _httpClient.Timeout = TimeSpan.FromSeconds(30);
             _cajaService = cajaService;
         }
         public async Task<IEnumerable<ItemsDto>> GetItemsByEstablishment(int establishmentId)
@@ -105,10 +106,9 @@ namespace FacturacionAPI.Services
             var json = JsonSerializer.Serialize(anulacion);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", establishment?.TokenNubefact);
-
-            // 🔹 Llamada a Nubefact
-            var response = await _httpClient.PostAsync(establishment?.urlNubefact, content);
+            var requestMsg = new HttpRequestMessage(HttpMethod.Post, establishment?.urlNubefact) { Content = content };
+            requestMsg.Headers.Authorization = new AuthenticationHeaderValue("Token", establishment?.TokenNubefact);
+            var response = await _httpClient.SendAsync(requestMsg);
             var result = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -262,10 +262,10 @@ namespace FacturacionAPI.Services
             var json = JsonSerializer.Serialize(comprobante);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", establishment?.TokenNubefact);
-
-            // 🔹 Llamada a Nubefact
-            var response = await _httpClient.PostAsync(establishment?.urlNubefact, content);
+            // 🔹 Llamada a Nubefact (usando HttpRequestMessage para no mutar DefaultRequestHeaders en concurrencia)
+            var requestMsg = new HttpRequestMessage(HttpMethod.Post, establishment?.urlNubefact) { Content = content };
+            requestMsg.Headers.Authorization = new AuthenticationHeaderValue("Token", establishment?.TokenNubefact);
+            var response = await _httpClient.SendAsync(requestMsg);
             var result = await response.Content.ReadAsStringAsync();
 
             if (!response.IsSuccessStatusCode)
@@ -624,7 +624,7 @@ namespace FacturacionAPI.Services
             var fin = fecha.Date.AddDays(1);
 
             var lista = await _context.Ventas
-               .Where(v => v.EstablishmentId == establishmentId && v.FechaEmision >= inicio && v.FechaEmision < fin) // Factura o Boleta
+               .Where(v => v.EstablishmentId == establishmentId && v.FechaEmision >= inicio && v.FechaEmision < fin && v.EsPreVenta == false) // Factura o Boleta
                .OrderByDescending(v => v.FechaEmision)
                .Select(v => new
                {

@@ -91,7 +91,11 @@ namespace FacturacionAPI.Controllers
             }
             catch (ApplicationException ex)
             {
-                return BadRequest(new { success= false, message = ex.Message });
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (TaskCanceledException)
+            {
+                return StatusCode(504, new { success = false, message = "Nubefact no respondió a tiempo. Verifique si el comprobante fue emitido antes de reintentar." });
             }
             catch (Exception ex)
             {
