@@ -58,6 +58,8 @@ builder.Services.AddCors(options =>
         });
 });
 
+builder.Services.AddHostedService<FacturacionAPI.Services.AnulacionNubefactJob>();
+
 var app = builder.Build();
 
 app.UseSwagger();

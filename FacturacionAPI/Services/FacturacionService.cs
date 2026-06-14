@@ -89,65 +89,39 @@ namespace FacturacionAPI.Services
 
         public async Task<object> AnularVentaAsync(int id, int establishmentId)
         {
-            var establishment = await _context.Establishment.FindAsync(establishmentId);
-
             var documento = await _context.Ventas.FindAsync(id);
 
-            var anulacion = new
-            {
-                operacion = "generar_anulacion",
-                tipo_de_comprobante = documento.TipoComprobante == "BOLETA" ? 2 : 1, 
-                serie = documento.Serie,
-                numero = documento.Numero,
-                motivo = "BAJA EN EL SISTEMA",
-                codigo_unico = ""
-            };
+            if (documento == null)
+                throw new ApplicationException("Documento no encontrado.");
 
-            var json = JsonSerializer.Serialize(anulacion);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            if (documento.IsAnnulled)
+                throw new ApplicationException("El documento ya fue anulado.");
 
-            var requestMsg = new HttpRequestMessage(HttpMethod.Post, establishment?.urlNubefact) { Content = content };
-            requestMsg.Headers.Authorization = new AuthenticationHeaderValue("Token", establishment?.TokenNubefact);
-            var response = await _httpClient.SendAsync(requestMsg);
-            var result = await response.Content.ReadAsStringAsync();
+            // Marcar como anulado en BD de forma inmediata
+            documento.IsAnnulled = true;
+            _context.Ventas.Update(documento);
 
-            if (!response.IsSuccessStatusCode)
-                throw new ApplicationException($"Error en Nubefact: {result}");
-
-            var nubefact = JsonSerializer.Deserialize<JsonElement>(result);
-
-            // Leer campos específicos
-            string enlacePdf = nubefact.GetProperty("enlace_del_pdf").GetString();
-            string enlaceXml = nubefact.GetProperty("enlace_del_xml").GetString();
-            string enlaceCdr = nubefact.GetProperty("enlace_del_cdr").GetString();
-
-            // Guardar en BD
-            var anulacionDb = new AnulacionDocumento
+            // Registrar pendiente de envío a Nubefact (se enviará a las 3 AM)
+            _context.AnulacionDocumento.Add(new AnulacionDocumento
             {
                 VentaId = documento.Id,
                 CodigoUnico = "",
-                Motivo = "ERROR DEL SISTEMA",
-                EnlacePdf = enlacePdf,
-                EnlaceXml = enlaceXml,
-                EnlaceCdr = enlaceCdr
-            };
-
-            _context.AnulacionDocumento.Add(anulacionDb);
-
-            // 🔥 Aquí actualizamos la venta como anulada
-            documento.IsAnnulled = true;
-            _context.Ventas.Update(documento);
+                Motivo = "BAJA EN EL SISTEMA",
+                EnlacePdf = "",
+                EnlaceXml = "",
+                EnlaceCdr = "",
+                EnviadoNubefact = false
+            });
 
             await _context.SaveChangesAsync();
 
             return new
             {
-                mensaje = "Documento anulado correctamente",
-                pdf = enlacePdf,
-                xml = enlaceXml,
-                cdr = enlaceCdr
+                mensaje = "Documento anulado en el sistema. Será enviado a Nubefact a las 3 AM.",
+                ventaId = documento.Id,
+                serie = documento.Serie,
+                numero = documento.Numero
             };
-
         }
         public async Task<object> RegistrarVentaAsync(VentaRequest request, int establishmentId)
         {
