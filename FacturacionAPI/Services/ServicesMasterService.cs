@@ -24,6 +24,7 @@ namespace FacturacionAPI.Services
                     Code = x.Code,
                     Name = x.Name,
                     Price = x.Price,
+                    PriceDolar = x.PriceDolar,
                     IsActive = x.IsActive,
                     IsThird = x.IsThird,
                     IsDiscount = x.IsDiscount
@@ -45,7 +46,8 @@ namespace FacturacionAPI.Services
             {
                 Code = code,
                 Name = dto.Name.Trim(),
-                Price = dto.Price,
+                Price = dto.Price ?? 0,
+                PriceDolar = dto.PriceDolar,
                 IsActive = true,
                 IsThird = dto.IsThird,
                 IsDiscount = dto.IsDiscount,
@@ -65,7 +67,8 @@ namespace FacturacionAPI.Services
                 return (false, "Servicio no encontrado.");
 
             service.Name = dto.Name.Trim();
-            service.Price = dto.Price;
+            service.Price = dto.Price ?? 0;
+            service.PriceDolar = dto.PriceDolar;
             service.IsActive = dto.IsActive;
             service.IsThird = dto.IsThird;
             service.IsDiscount = dto.IsDiscount;

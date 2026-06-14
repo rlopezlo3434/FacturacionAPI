@@ -4,6 +4,7 @@
     {
         public int Id { get; set; }
         public string Code { get; set; } = null!;
+        public int Correlativo { get; set; }
         public int VehicleIntakeId { get; set; }
         public int Mode { get; set; } // 1=taller, 2=recojo
         public bool IsCompleted { get; set; }

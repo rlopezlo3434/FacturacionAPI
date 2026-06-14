@@ -51,6 +51,7 @@ namespace FacturacionAPI.Services
                 .Select(x => new VehicleIntakeListDto
                 {
                     Id = x.Id,
+                    Correlativo = x.Correlativo,
                     Mode = (int)x.Mode,
                     PickupAddress = x.PickupAddress,
                     MileageKm = x.MileageKm,
@@ -122,6 +123,11 @@ namespace FacturacionAPI.Services
             if (dto.MileageKm <= 0)
                 return (false, "El kilometraje debe ser mayor a 0.");
             
+            var nextCorrelativo = await _context.VehicleIntakes
+                .IgnoreQueryFilters()
+                .MaxAsync(x => (int?)x.Correlativo) ?? 0;
+            nextCorrelativo++;
+
             var intake = new VehicleIntake
             {
                 VehicleId = dto.VehicleId,
@@ -133,6 +139,7 @@ namespace FacturacionAPI.Services
                 Services = dto.Services,
                 FuelLevel = dto.FuelLevel,
                 NombreEncargadoRecojo = dto.NombreEncargadoRecojo,
+                Correlativo = nextCorrelativo,
                 CreatedAt = DateTime.Now
             };
 
@@ -375,6 +382,7 @@ namespace FacturacionAPI.Services
             return new VehicleIntakeDetailDto
             {
                 Id = intake.Id,
+                Correlativo = intake.Correlativo,
                 Mode = (int)intake.Mode,
                 PickupAddress = intake.PickupAddress,
                 MileageKm = intake.MileageKm,

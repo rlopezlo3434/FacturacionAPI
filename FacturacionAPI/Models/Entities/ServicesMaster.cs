@@ -14,6 +14,9 @@ namespace FacturacionAPI.Models.Entities
         [Column(TypeName = "decimal(18,2)")]
         public decimal Price { get; set; }
 
+        [Column(TypeName = "decimal(18,2)")]
+        public decimal? PriceDolar { get; set; }
+
         public bool IsActive { get; set; } = true;
         public bool IsThird { get; set; } = false;
         public bool IsDiscount { get; set; } = false;

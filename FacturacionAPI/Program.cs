@@ -83,6 +83,7 @@ builder.Services.AddSingleton(typeof(IConverter), new SynchronizedConverter(new 
 builder.Services.AddScoped<PdfService>();
 builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<CompraService>();
+builder.Services.AddHostedService<AnulacionNubefactJob>();
 
 var app = builder.Build();
 

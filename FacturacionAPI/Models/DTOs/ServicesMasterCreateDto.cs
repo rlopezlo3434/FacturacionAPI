@@ -3,7 +3,8 @@
     public class ServicesMasterCreateDto
     {
         public string Name { get; set; } = null!;
-        public decimal Price { get; set; }
+        public decimal? Price { get; set; }
+        public decimal? PriceDolar { get; set; }
         public bool IsThird { get; set; }
         public bool IsDiscount { get; set; }
     }
@@ -11,7 +12,8 @@
     public class ServicesMasterUpdateDto
     {
         public string Name { get; set; } = null!;
-        public decimal Price { get; set; }
+        public decimal? Price { get; set; }
+        public decimal? PriceDolar { get; set; }
         public bool IsActive { get; set; }
         public bool IsThird { get; set; }
         public bool IsDiscount { get; set; }
@@ -22,7 +24,8 @@
         public int Id { get; set; }
         public string Code { get; set; } = null!;
         public string Name { get; set; } = null!;
-        public decimal Price { get; set; }
+        public decimal? Price { get; set; }
+        public decimal? PriceDolar { get; set; }
         public bool IsActive { get; set; }
         public bool IsThird { get; set; }
         public bool IsDiscount { get; set; }

@@ -1,8 +1,10 @@
 ﻿using DinkToPdf;
 using DinkToPdf.Contracts;
+using FacturacionAPI.Data;
 using FacturacionAPI.Migrations;
 using FacturacionAPI.Models.DTOs;
 using FacturacionAPI.Models.Entities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using OfficeOpenXml.Style;
 using QRCoder;
@@ -21,11 +23,13 @@ namespace FacturacionAPI.Services
         private readonly VehicleBudgetService _serviceVehicleBudget;
         private readonly WorkOrderService _serviceWorkOrder;
         private readonly FacturacionService _serviceFacturacion;
+        private readonly SistemaVentasDbContext _context;
 
         private readonly IWebHostEnvironment _env;
-        public PdfService(IConverter converter, VehicleIntakeService service, VehicleBudgetService serviceVehicleBudget, 
-            IWebHostEnvironment env, WorkOrderService serviceWorkOrder, FacturacionService serviceFacturacion)
+        public PdfService(IConverter converter, VehicleIntakeService service, VehicleBudgetService serviceVehicleBudget,
+            IWebHostEnvironment env, WorkOrderService serviceWorkOrder, FacturacionService serviceFacturacion, SistemaVentasDbContext context)
         {
+            _context = context;
             _converter = converter;
             _service = service;
             _serviceVehicleBudget = serviceVehicleBudget;
@@ -277,7 +281,7 @@ body {{
                 <div class='box'>
                     <div class='box-row'>
                         <div> N° Internamiento </div>
-                        <div class= 'line big'>{data?.Id}</div>
+                        <div class= 'line big'>{data?.Correlativo}</div>
                     </div>
 
                     <div class='box-row'>
@@ -1009,7 +1013,7 @@ body {{
                                     </tr>
 
                                     <tr>
-                                        <td class='label-box'>R.U.C. <small>:</small></td>
+                                        <td class='label-box'>R.U.C. / DNI <small>:</small></td>
                                         <td>{data?.ClienteDocumento}</td>
 
                                         <td class='label-box'>MONEDA <small>:</small></td>
@@ -1528,8 +1532,8 @@ body {{
             <td class='center'>{item.Cantidad:0.00}</td>
             <td class='center'>UNI</td>
             <td>{item.Descripcion.ToUpper()}</td>
-            <td class='right'>{item.ValorUnitario:0.00}</td>
-            <td class='right'>{item.Total:0.00}</td>
+            <td class='right'>{(item.PrecioUnitario / item.Cantidad):0.00}</td>
+            <td class='right'>{item.PrecioUnitario:0.00}</td>
         </tr>";
 
                 index++;
@@ -1645,11 +1649,11 @@ body {{
 <table class='detalle-table'>
     <tr>
         <th style='width:8%; color: white;'>ITEM</th>
-        <th style='width:12%; color: white;'>CANTIDAD</th>
-        <th style='width:12%; color: white;'>UND</th>
-        <th style='width:40%; color: white;'>DESCRIPCIÓN</th>
-        <th style='width:14%; color: white;'>VALOR</th>
-        <th style='width:14%; color: white;'>IMPORTE</th>
+        <th style='width:10%; color: white;'>CANTIDAD</th>
+        <th style='width:10%; color: white;'>UND</th>
+        <th style='width:45%; color: white;'>DESCRIPCIÓN</th>
+        <th style='width:15%; color: white;'>VALOR UNITARIO</th>
+        <th style='width:12%; color: white;'>IMPORTE</th>
     </tr>
 
     {filas}
@@ -1788,7 +1792,7 @@ body {{
 
         private string GenerarHtmlOrdenTrabajo(WorkOrderDetailDto data, List<VehicleBudgetDetailDto> data2)
         {
-            var cabecera = GenerarCabeceraPresupuesto(data2[0]);
+            var cabecera = GenerarCabeceraPresupuesto(data2[0], data);
             var respuestos = GenerarRepuestosDemo2(data, data2);
             var servicios = GenerarServiciosDemo2(data, data2);
             var generarTotales = GenerarTotales2(data, data2);
@@ -1838,7 +1842,7 @@ body {{
         private string GenerarHtml(VehicleBudgetDetailDto data)
         {
             //var bloqueInventario = GenerarBloqueInventario(data);
-            var cabecera = GenerarCabeceraPresupuesto(data);
+            var cabecera = GenerarCabeceraPresupuesto(data, null);
             var respuestos = GenerarRepuestosDemo(data);
             var servicios = GenerarServiciosDemo(data);
 
@@ -1889,7 +1893,7 @@ body {{
                     </html>";
         }
 
-        private string GenerarCabeceraPresupuesto(VehicleBudgetDetailDto data)
+        private string GenerarCabeceraPresupuesto(VehicleBudgetDetailDto data, WorkOrderDetailDto dataOriginal)
         {
             string telefono = data.VehicleIntake?.Client?.Numbers?
                                 .FirstOrDefault(n => n.IsPrimary)?.Number
@@ -1959,7 +1963,7 @@ body {{
 
                 </style>
                 <div>
-                   <strong>FECHA CREACIÓN:</strong> {data.CreatedAt:dd/MM/yyyy HH:mm}
+                   <strong>FECHA CREACIÓN:</strong> {(dataOriginal != null ? dataOriginal.CreatedAt : data.CreatedAt):dd/MM/yyyy HH:mm}
                 </div>
                 <table class='section'>
 
@@ -2817,6 +2821,9 @@ body {{
                 </div>";
             }
 
+            var moneda = data[0].Moneda == "USD" ? "DOLARES" : "SOLES";
+            //var intake = await _context.VehicleIntakes.FirstOrDefaultAsync(x => x.Id == data[0].);
+
             return $@"
                     <style>
 
@@ -2880,7 +2887,7 @@ body {{
                     </tr>
 
                     <tr>
-                        <td class='totales-box'>SOLES</td>
+                        <td class='totales-box'>{moneda}</td>
                         <td class='totales-box'>{subtotal:N2}</td>
                         <td class='totales-box'>{igv:N2}</td>
                         <td class='totales-box'>{total:N2}</td>
@@ -2888,13 +2895,6 @@ body {{
 
                     </table>
                     {observacionesHtml}
-
-                    <!-- OBSERVACIONES PRESUPUESTO -->
-                    <div class='obs-title'>OBSERVACIONES</div>
-
-                    <div class='obs-box'>
-                    El presente documento <b>NO ESTA CERRADO AL 100%</b>, porque está sujeto a variaciones ya que pueden faltar cargos adicionales, ya sea en servicios o repuestos, los mismos que se pondrán en conocimiento del cliente
-                    </div>
 
                     <div class='obs-footer'>
                     {extrasHtml}
@@ -2904,6 +2904,7 @@ body {{
 
         private string GenerarTotales(VehicleBudgetDetailDto data)
         {
+            var moneda = data.Moneda == "USD" ? "DOLARES" : "SOLES";
             decimal subtotal = data.Items.Sum(x => x.TotalPrice);
             decimal igv = subtotal * 0.18m;
             decimal total = subtotal + igv;
@@ -2981,7 +2982,7 @@ body {{
                     </tr>
 
                     <tr>
-                        <td class='totales-box'>SOLES</td>
+                        <td class='totales-box'>{moneda}</td>
                         <td class='totales-box'>{subtotal:N2}</td>
                         <td class='totales-box'>{igv:N2}</td>
                         <td class='totales-box'>{total:N2}</td>

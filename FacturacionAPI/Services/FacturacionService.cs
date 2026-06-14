@@ -88,26 +88,64 @@ namespace FacturacionAPI.Services
 
         public async Task<object> AnularVentaAsync(int id, int establishmentId)
         {
-            var establishment = await _context.Establishment.FindAsync(establishmentId);
-
             var documento = await _context.Ventas.FindAsync(id);
 
-            var anulacion = new
+            if (documento == null)
+                throw new ApplicationException("Documento no encontrado.");
+
+            if (documento.IsAnnulled)
+                throw new ApplicationException("El documento ya fue anulado.");
+
+            // Marcar como anulado en BD de forma inmediata
+            documento.IsAnnulled = true;
+            _context.Ventas.Update(documento);
+
+            // Registrar pendiente de envío a Nubefact (se enviará a las 3 AM)
+            _context.AnulacionDocumento.Add(new AnulacionDocumento
+            {
+                VentaId = documento.Id,
+                CodigoUnico = "",
+                Motivo = "BAJA EN EL SISTEMA",
+                EnlacePdf = "",
+                EnlaceXml = "",
+                EnlaceCdr = "",
+                EnviadoNubefact = false
+            });
+
+            await _context.SaveChangesAsync();
+
+            return new
+            {
+                mensaje = "Documento anulado en el sistema. Será enviado a Nubefact a las 3 AM.",
+                ventaId = documento.Id,
+                serie = documento.Serie,
+                numero = documento.Numero
+            };
+        }
+
+        public async Task<object> EnviarAnulacionNubefactAsync(int ventaId, int establishmentId)
+        {
+            var establishment = await _context.Establishment.FindAsync(establishmentId);
+            var documento = await _context.Ventas.FindAsync(ventaId)
+                ?? throw new ApplicationException("Documento no encontrado.");
+            var anulacionDb = await _context.AnulacionDocumento
+                .FirstOrDefaultAsync(a => a.VentaId == ventaId && !a.EnviadoNubefact)
+                ?? throw new ApplicationException("No hay anulación pendiente para este documento.");
+
+            var payload = new
             {
                 operacion = "generar_anulacion",
-                tipo_de_comprobante = documento.TipoComprobante == "BOLETA" ? 2 : 1, 
+                tipo_de_comprobante = documento.TipoComprobante == "BOLETA" ? 2 : 1,
                 serie = documento.Serie,
                 numero = documento.Numero,
                 motivo = "BAJA EN EL SISTEMA",
                 codigo_unico = ""
             };
 
-            var json = JsonSerializer.Serialize(anulacion);
+            var json = JsonSerializer.Serialize(payload);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
-
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Token", establishment?.TokenNubefact);
 
-            // 🔹 Llamada a Nubefact
             var response = await _httpClient.PostAsync(establishment?.urlNubefact, content);
             var result = await response.Content.ReadAsStringAsync();
 
@@ -116,38 +154,14 @@ namespace FacturacionAPI.Services
 
             var nubefact = JsonSerializer.Deserialize<JsonElement>(result);
 
-            // Leer campos específicos
-            string enlacePdf = nubefact.GetProperty("enlace_del_pdf").GetString();
-            string enlaceXml = nubefact.GetProperty("enlace_del_xml").GetString();
-            string enlaceCdr = nubefact.GetProperty("enlace_del_cdr").GetString();
-
-            // Guardar en BD
-            var anulacionDb = new AnulacionDocumento
-            {
-                VentaId = documento.Id,
-                CodigoUnico = "",
-                Motivo = "ERROR DEL SISTEMA",
-                EnlacePdf = enlacePdf,
-                EnlaceXml = enlaceXml,
-                EnlaceCdr = enlaceCdr
-            };
-
-            _context.AnulacionDocumento.Add(anulacionDb);
-
-            // 🔥 Aquí actualizamos la venta como anulada
-            documento.IsAnnulled = true;
-            _context.Ventas.Update(documento);
+            anulacionDb.EnlacePdf = nubefact.GetProperty("enlace_del_pdf").GetString() ?? "";
+            anulacionDb.EnlaceXml = nubefact.GetProperty("enlace_del_xml").GetString() ?? "";
+            anulacionDb.EnlaceCdr = nubefact.GetProperty("enlace_del_cdr").GetString() ?? "";
+            anulacionDb.EnviadoNubefact = true;
 
             await _context.SaveChangesAsync();
 
-            return new
-            {
-                mensaje = "Documento anulado correctamente",
-                pdf = enlacePdf,
-                xml = enlaceXml,
-                cdr = enlaceCdr
-            };
-
+            return new { ventaId, enviado = true };
         }
 
         private string ObtenerCondicionVentaTexto(string? condicion)
@@ -181,7 +195,10 @@ namespace FacturacionAPI.Services
 
             var nuevoCorrelativo = correlativo == 0 ? 1 : correlativo + 1;
 
-            var items = request.items.Select(i =>
+            var positiveItems = request.items.Where(i => i.value >= 0).ToList();
+            var negativeItems = request.items.Where(i => i.value < 0).ToList();
+
+            var items = positiveItems.Select(i =>
             {
                 decimal subtotal = i.value;
                 decimal valorUnitario = subtotal / i.cantidad;
@@ -203,6 +220,10 @@ namespace FacturacionAPI.Services
                 };
             }).ToList();
 
+            decimal descuentoGeneral = negativeItems.Any()
+                ? Math.Round(negativeItems.Sum(i => i.value) * -1, 2)
+                : 0;
+
             decimal total = items.Sum(x => (decimal)x.total);
             decimal totalGravada = Math.Round(total / FACTOR_IGV, 2);
             decimal totalIgv = Math.Round(total - totalGravada, 2);
@@ -215,6 +236,26 @@ namespace FacturacionAPI.Services
             }
             //Cond_venta = request.tipo_condicion_pago?.Split('_').Take(2).Aggregate((a, b) => $"{a}_{b}"),
 
+            string? marcaFinal = request.items[0].brand;
+            string? modeloFinal = request.items[0].model;
+            int? anioFinal = request.items[0].anio;
+            string? placaFinal = string.IsNullOrWhiteSpace(request.vehiculo_placa) ? request.items[0].placa : request.vehiculo_placa;
+
+            if (!string.IsNullOrWhiteSpace(request.vehiculo_placa))
+            {
+                var vehiculo = await _context.Vehicles
+                    .Include(v => v.Brand)
+                    .Include(v => v.Model)
+                    .FirstOrDefaultAsync(v => v.Plate == request.vehiculo_placa);
+
+                if (vehiculo != null)
+                {
+                    marcaFinal = vehiculo.Brand.Name;
+                    modeloFinal = vehiculo.Model.Name;
+                    anioFinal = vehiculo.Year;
+                }
+            }
+
             // 🔥 CREAS LA VENTA (SIN GUARDAR)
             var venta = new Venta
             {
@@ -226,15 +267,15 @@ namespace FacturacionAPI.Services
                 Direccion = request.direccion,
                 TotalGravada = totalGravada,
                 TotalIgv = totalIgv,
-                Total = total,
+                Total = Math.Round(total - descuentoGeneral, 2),
                 Observaciones = request.observaciones,
                 FechaEmision = DateTime.Now,
                 MetodoPago = request.metodo_pago,
                 EstablishmentId = establishmentId,
-                Marca = request.items[0].brand,
-                Modelo = request.items[0].model,
-                Anio = request.items[0].anio,
-                Placa = string.IsNullOrWhiteSpace(request.vehiculo_placa) ? request.items[0].placa : request.vehiculo_placa,
+                Marca = marcaFinal,
+                Modelo = modeloFinal,
+                Anio = anioFinal,
+                Placa = placaFinal,
                 Detraccion = request.detraccion,
                 Cond_venta = request.tipo_condicion_pago, // request.tipo_condicion_pago?.Split('_').Take(2).Aggregate((a, b) => $"{a}_{b}"),
                 DetraccionPorcentaje = request.detraccion_porcentaje,
@@ -301,19 +342,25 @@ namespace FacturacionAPI.Services
             }
 
             // 🔹 ENVÍO A NUBEFACT
+            // total_igv y total_gravada deben coincidir con la suma de las líneas (sin descontar)
+            // el descuento_general reduce solo el total final
+            decimal totalConDescuento = Math.Round(total - descuentoGeneral, 2);
+
             var json = JsonSerializer.Serialize(new
             {
                 operacion = "generar_comprobante",
                 tipo_de_comprobante = request.tipo_de_comprobante,
                 sunat_transaction = 1,
                 serie = serieEfectiva,
+                descuento_general = descuentoGeneral > 0 ? descuentoGeneral : (decimal?)null,
+                total_descuento = descuentoGeneral > 0 ? descuentoGeneral : (decimal?)null,
                 numero = nuevoCorrelativo,
                 cliente_tipo_de_documento = int.Parse(request.cliente_tipo_documento),
                 cliente_numero_de_documento = request.cliente_numero,
                 cliente_denominacion = request.cliente_nombre,
                 fecha_de_emision = request.fecha_emision?.ToString("dd-MM-yyyy"),
                 cliente_direccion = request.direccion,
-                total = total,
+                total = totalConDescuento,
                 total_igv = totalIgv,
                 porcentaje_de_igv = IGV_PERCENT,
                 total_gravada = totalGravada,
@@ -688,56 +735,72 @@ namespace FacturacionAPI.Services
         public async Task<(bool Success, string Message, int InvoiceId)>
         CreateInvoiceFromApprovedItemsAsync(int intakeId)
         {
-            // ✅ items aprobados NO facturados
+            var realIntakeId = await _context.VehicleIntakes
+                .Where(x => x.Correlativo == intakeId)
+                .Select(x => x.Id)
+                .FirstOrDefaultAsync();
+
+            if (realIntakeId == 0)
+                return (false, "Internamiento no existe.", 0);
+
+            // Buscar o crear la invoice del internamiento
+            var invoice = await _context.Invoices
+                .FirstOrDefaultAsync(x => x.VehicleIntakeId == realIntakeId && x.IsActive);
+
+            if (invoice == null)
+            {
+                invoice = new Invoice
+                {
+                    VehicleIntakeId = realIntakeId,
+                    CreatedAt = DateTime.Now,
+                    IsActive = true
+                };
+                _context.Invoices.Add(invoice);
+                await _context.SaveChangesAsync();
+            }
+
+            // 1. Eliminar todos los items anteriores de la invoice
+            var oldItems = await _context.InvoicesItem
+                .Where(x => x.InvoiceId == invoice.Id)
+                .ToListAsync();
+
+            _context.InvoicesItem.RemoveRange(oldItems);
+            await _context.SaveChangesAsync();
+
+            // 2. Cargar los items aprobados actuales de todos los presupuestos del internamiento
             var approvedItems = await _context.VehicleBudgetItems
-                .Include(x => x.VehicleBudget)
-               .Where(x =>
+                .Where(x =>
                     x.IsApproved &&
-                    !x.IsInvoiced &&
-                    x.VehicleBudget.VehicleIntakeId == intakeId &&
+                    x.VehicleBudget.VehicleIntakeId == realIntakeId &&
                     x.VehicleBudget.IsActive)
                 .ToListAsync();
 
             if (!approvedItems.Any())
-                return (false, "No existen nuevos items aprobados para facturar.", 0);
+                return (false, "No hay ítems aprobados para este internamiento.", invoice.Id);
 
-            var invoice = new Invoice
-            {
-                VehicleIntakeId = intakeId,
-                CreatedAt = DateTime.Now,
-                IsActive = true
-            };
-
-            decimal total = 0;
-
+            // 3. Insertar los nuevos
             foreach (var item in approvedItems)
             {
-                invoice.Items.Add(new InvoiceItem
+                _context.InvoicesItem.Add(new InvoiceItem
                 {
-                    VehicleBudgetItemId = item.Id, // ⭐ CLAVE
-
+                    InvoiceId = invoice.Id,
+                    VehicleBudgetItemId = item.Id,
                     ItemType = item.ItemType,
                     ProductId = item.ProductId,
                     ServiceMasterId = item.ServiceMasterId,
-
                     Quantity = item.Quantity,
                     UnitPrice = item.UnitPrice,
                     Discount = item.Discount,
                     TotalPrice = item.TotalPrice,
                     ServicePackageId = item.ServicePackageId
                 });
-
-                item.IsInvoiced = true;
-
-                total += item.TotalPrice;
             }
 
-            invoice.Total = total;
+            invoice.Total = approvedItems.Sum(x => x.TotalPrice);
 
-            _context.Invoices.Add(invoice);
             await _context.SaveChangesAsync();
 
-            return (true, "Factura generada correctamente.", invoice.Id);
+            return (true, $"Invoice sincronizada con {approvedItems.Count} ítems aprobados.", invoice.Id);
         }
 
         public async Task<List<InvoiceSelectableItemDto>>

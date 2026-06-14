@@ -68,19 +68,24 @@ namespace FacturacionAPI.Services
 
         public async Task<(bool Success, string Message)> GenerateOrUpdateWorkOrderAsync(int intakeId)
         {
-            var intakeExists = await _context.VehicleIntakes.AnyAsync(x => x.Id == intakeId);
+            var idInter= await _context.VehicleIntakes
+                .Where(x => x.Correlativo == intakeId)
+                .Select(x => x.Id)
+                .FirstOrDefaultAsync();
+
+            var intakeExists = await _context.VehicleIntakes.AnyAsync(x => x.Correlativo == intakeId);
             if (!intakeExists)
                 return (false, "Internamiento no existe.");
 
             var workOrder = await _context.WorkOrders
-                .FirstOrDefaultAsync(x => x.VehicleIntakeId == intakeId && x.IsActive);
+                .FirstOrDefaultAsync(x => x.VehicleIntakeId == idInter && x.IsActive);
 
             if (workOrder == null)
             {
                 workOrder = new WorkOrder
                 {
                     Code = await GenerateWorkOrderCodeAsync(),
-                    VehicleIntakeId = intakeId,
+                    VehicleIntakeId = idInter,
                     CreatedAt = DateTime.Now,
                     IsActive = true
                 };
@@ -89,33 +94,42 @@ namespace FacturacionAPI.Services
                 await _context.SaveChangesAsync();
             }
 
-            // 👉 marcar ítems aprobados como parte de la OT
-            var approvedItems = await _context.VehicleBudgetItems
-                .Where(x =>
-                    x.VehicleBudget.VehicleIntakeId == intakeId &&
-                    x.IsApproved &&
-                    !x.IsInWorkOrder)
+            // IDs de todos los budget items aprobados del internamiento
+            var approvedBudgetItemIds = await _context.VehicleBudgetItems
+                .Where(x => x.VehicleBudget.VehicleIntakeId == idInter && x.IsApproved)
+                .Select(x => x.Id)
                 .ToListAsync();
 
-            foreach (var item in approvedItems)
-            {
-                var exists = await _context.WorkOrderItems.AnyAsync(w =>
-                    w.WorkOrderId == workOrder.Id &&
-                    w.VehicleBudgetItemId == item.Id);
+            // WorkOrderItems actuales de esta OT
+            var currentWorkOrderItems = await _context.WorkOrderItems
+                .Where(x => x.WorkOrderId == workOrder.Id)
+                .ToListAsync();
 
-                if (!exists)
+            // Eliminar los que ya no están aprobados
+            var toRemove = currentWorkOrderItems
+                .Where(w => !approvedBudgetItemIds.Contains(w.VehicleBudgetItemId))
+                .ToList();
+
+            _context.WorkOrderItems.RemoveRange(toRemove);
+
+            // Agregar los aprobados que aún no están en la OT
+            var existingIds = currentWorkOrderItems
+                .Select(w => w.VehicleBudgetItemId)
+                .ToHashSet();
+
+            var toAdd = approvedBudgetItemIds
+                .Where(id => !existingIds.Contains(id))
+                .Select(id => new WorkOrderItem
                 {
-                    _context.WorkOrderItems.Add(new WorkOrderItem
-                    {
-                        WorkOrderId = workOrder.Id,
-                        VehicleBudgetItemId = item.Id
-                    });
-                }
-            }
+                    WorkOrderId = workOrder.Id,
+                    VehicleBudgetItemId = id
+                });
+
+            _context.WorkOrderItems.AddRange(toAdd);
 
             await _context.SaveChangesAsync();
 
-            return (true, $"Orden de Trabajo {workOrder.Code} lista con ítems aprobados.");
+            return (true, $"Orden de Trabajo {workOrder.Code} sincronizada con {approvedBudgetItemIds.Count} ítems aprobados.");
         }
 
         private async Task<string> GenerateWorkOrderCodeAsync()
@@ -157,6 +171,7 @@ namespace FacturacionAPI.Services
                     Id = x.Id,
                     Code = x.Code,
                     VehicleIntakeId = x.VehicleIntakeId,
+                    Correlativo = x.VehicleIntake.Correlativo,
                     Mode = (int)x.VehicleIntake.Mode,
                     CreatedAt = x.CreatedAt,
                     //IsCompleted = x.Items.All(i => i.IsCompleted),

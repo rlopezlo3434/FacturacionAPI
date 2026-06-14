@@ -22,13 +22,14 @@ namespace FacturacionAPI.Models.Entities
         public int MileageKm { get; set; } // kilometraje al ingreso
         public int? FuelLevel { get; set; }
 
-        [MaxLength(500)]
         public string? Observations { get; set; }
 
         public string? Services { get; set; }
 
         [MaxLength(250)]
         public string? NombreEncargadoRecojo { get; set; }
+
+        public int Correlativo { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.Now;
 

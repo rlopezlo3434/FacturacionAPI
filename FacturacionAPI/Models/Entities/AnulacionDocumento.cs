@@ -11,5 +11,6 @@
         public string EnlaceXml { get; set; }
         public string EnlaceCdr { get; set; }
         public DateTime FechaRegistro { get; set; } = DateTime.Now;
+        public bool EnviadoNubefact { get; set; } = false;
     }
 }

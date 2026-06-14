@@ -70,6 +70,18 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, message = result.Message });
         }
 
+        // ✅ DELETE api/VehicleBudget/{budgetId}
+        [HttpDelete("{budgetId}")]
+        public async Task<IActionResult> Delete(int budgetId)
+        {
+            var result = await _service.DeleteBudgetAsync(budgetId);
+
+            if (!result.Success)
+                return BadRequest(new { success = false, message = result.Message });
+
+            return Ok(new { success = true, message = result.Message });
+        }
+
         // ✅ GET api/VehicleBudget/{budgetId}
         [HttpGet("{budgetId}")]
         public async Task<IActionResult> GetDetail(int budgetId)

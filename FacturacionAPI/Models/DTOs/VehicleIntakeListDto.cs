@@ -8,6 +8,7 @@ namespace FacturacionAPI.Models.DTOs
     public class VehicleIntakeListDto
     {
         public int Id { get; set; }
+        public int Correlativo { get; set; }
         public int Mode { get; set; }
         public string? PickupAddress { get; set; }
         public int MileageKm { get; set; }
@@ -35,6 +36,7 @@ namespace FacturacionAPI.Models.DTOs
     public class VehicleIntakeDetailDto
     {
         public int Id { get; set; }
+        public int Correlativo { get; set; }
         public int Mode { get; set; }
         public string? PickupAddress { get; set; }
         public int MileageKm { get; set; }

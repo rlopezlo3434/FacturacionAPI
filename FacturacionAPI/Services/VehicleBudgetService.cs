@@ -19,7 +19,7 @@ namespace FacturacionAPI.Services
         public async Task<List<VehicleBudgetListDto>> GetBudgetsByIntakeAsync(int intakeId)
         {
             return await _context.VehicleBudgets
-                .Where(x => x.VehicleIntakeId == intakeId && x.IsActive)
+                .Where(x => x.VehicleIntake.Correlativo == intakeId && x.IsActive)
                 .OrderByDescending(x => x.CreatedAt)
                 .Select(x => new VehicleBudgetListDto
                 {
@@ -40,9 +40,11 @@ namespace FacturacionAPI.Services
             if (dto.Items == null || dto.Items.Count == 0)
                 return (false, "El presupuesto debe tener al menos 1 item.");
 
-            var intakeExists = await _context.VehicleIntakes.AnyAsync(x => x.Id == dto.VehicleIntakeId);
+            var intakeExists = await _context.VehicleIntakes.AnyAsync(x => x.Correlativo == dto.VehicleIntakeId);
             if (!intakeExists)
                 return (false, "El internamiento no existe.");
+
+            var internamiento = await _context.VehicleIntakes.FirstOrDefaultAsync(x => x.Correlativo == dto.VehicleIntakeId);
 
             var code = await GenerateBudgetCodeAsync(dto.VehicleIntakeId);
 
@@ -51,7 +53,7 @@ namespace FacturacionAPI.Services
             var budget = new VehicleBudget
             {
                 Code = code,
-                VehicleIntakeId = dto.VehicleIntakeId,
+                VehicleIntakeId = internamiento.Id,
                 Notes = dto.Notes,
                 Extras = dto.Extras,
                 Moneda = string.IsNullOrWhiteSpace(dto.Moneda) ? "PEN" : dto.Moneda,
@@ -121,6 +123,24 @@ namespace FacturacionAPI.Services
             await _context.SaveChangesAsync();
 
             return (true, "Presupuesto creado correctamente.");
+        }
+
+        // ✅ eliminar presupuesto
+        public async Task<(bool Success, string Message)> DeleteBudgetAsync(int budgetId)
+        {
+            var budget = await _context.VehicleBudgets
+                .Include(x => x.Items)
+                .FirstOrDefaultAsync(x => x.Id == budgetId && x.IsActive);
+
+            if (budget == null)
+                return (false, "Presupuesto no encontrado.");
+
+            _context.VehicleBudgetItems.RemoveRange(budget.Items);
+            _context.VehicleBudgets.Remove(budget);
+
+            await _context.SaveChangesAsync();
+
+            return (true, "Presupuesto eliminado correctamente.");
         }
 
         // ✅ editar presupuesto
@@ -321,8 +341,13 @@ namespace FacturacionAPI.Services
 
         private async Task<string> GenerateBudgetCodeAsync(int intakeId)
         {
+            var correlativo = await _context.VehicleIntakes
+                .Where(x => x.Correlativo == intakeId)
+                .Select(x => x.Correlativo)
+                .FirstOrDefaultAsync();
+
             var last = await _context.VehicleBudgets
-                .Where(x => x.VehicleIntakeId == intakeId)
+                .Where(x => x.VehicleIntake.Correlativo == intakeId)
                 .OrderByDescending(x => x.Id)
                 .Select(x => x.Code)
                 .FirstOrDefaultAsync();
@@ -331,13 +356,12 @@ namespace FacturacionAPI.Services
 
             if (!string.IsNullOrEmpty(last))
             {
-                // last puede ser INT0005-B0003
                 var parts = last.Split("-B");
                 if (parts.Length == 2 && int.TryParse(parts[1], out var lastNumber))
                     newNumber = lastNumber + 1;
             }
 
-            return $"INT{intakeId:D4}-B{newNumber:D4}";
+            return $"INT{correlativo:D4}-B{newNumber:D4}";
         }
 
         public async Task<VehicleBudgetDetailDto?> GetBudgetDetailAsync(int budgetId)
