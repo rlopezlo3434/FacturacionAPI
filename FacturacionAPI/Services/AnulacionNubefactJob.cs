@@ -41,7 +41,11 @@ namespace FacturacionAPI.Services
         private static TimeSpan TiempoHasta3Am()
         {
             var ahora = DateTime.Now;
-            var proximas3am = ahora.Date.AddDays(1).AddHours(3);
+            var proximas3am = ahora.Date.AddHours(3);
+
+            if (proximas3am <= ahora)
+                proximas3am = proximas3am.AddDays(1);
+
             return proximas3am - ahora;
         }
 

@@ -243,13 +243,55 @@ namespace FacturacionAPI.Controllers
         {
 
             var response = await _clientService.ResetTarjeta(req.ClienteId);
-            
+
 
             return Ok(new
             {
                 success = true,
                 message = "Tarjeta reseteada (nuevo ciclo)"
             });
+        }
+
+        [HttpGet("hijo/{childrenClientId}/tarjeta")]
+        public async Task<IActionResult> ObtenerTarjetaHijo(int childrenClientId)
+        {
+            try
+            {
+                var response = await _clientService.GetVisitaClientePorHijo(childrenClientId);
+                return Ok(response);
+            }
+            catch (ApplicationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("hijo/registrar-visita")]
+        public async Task<IActionResult> RegistrarVisitaHijo([FromBody] RegistrarVisitaHijoRequest request)
+        {
+            try
+            {
+                var response = await _clientService.RegistrarVisitaClientePorHijo(request.ChildrenClientId);
+                return Ok(response);
+            }
+            catch (ApplicationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
+
+        [HttpPost("hijo/reset-tarjeta")]
+        public async Task<IActionResult> ResetTarjetaHijo([FromBody] ResetTarjetaHijoRequest req)
+        {
+            try
+            {
+                var response = await _clientService.ResetTarjetaHijo(req.ChildrenClientId);
+                return Ok(new { success = true, message = "Tarjeta del hijo reseteada (nuevo ciclo)" });
+            }
+            catch (ApplicationException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
         }
 
     }

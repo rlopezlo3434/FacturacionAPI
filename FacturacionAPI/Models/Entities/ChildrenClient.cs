@@ -18,6 +18,7 @@ namespace FacturacionAPI.Models.Entities
         public Client Client { get; set; }
         public bool IsActive { get; set; } = true;
 
-        public string? Genero { get; set; }   
+        public string? Genero { get; set; }
+        public int TarjetaCicloActual { get; set; } = 1;
     }
 }

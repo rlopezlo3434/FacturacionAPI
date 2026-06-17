@@ -362,27 +362,13 @@ namespace FacturacionAPI.Services
             var cliente = await _context.Client
                 .FirstOrDefaultAsync(x => x.Id == clienteId);
 
-
-            //var visitas = await _context.VisitaClientes
-            //   .Where(x => x.ClienteId == clienteId &&
-            //        x.CicloTarjeta == cliente.TarjetaCicloActual)
-            //   .CountAsync();
-
             var visitas = await _context.VisitaClientes
                 .Where(x => x.ClienteId == clienteId &&
                      x.CicloTarjeta == cliente.TarjetaCicloActual)
                 .OrderBy(x => x.Fecha)
                 .ToListAsync();
 
-            //// generar 12 casillas
-            //var casillas = Enumerable.Range(1, 12)
-            //    .Select(i => new CasillaDto
-            //    {
-            //        Id = i,
-            //        Marcada = i <= visitas,
-            //        Label = ObtenerLabelPorCasilla(i),
-            //    })
-            //    .ToList();
+          
 
             var casillas = Enumerable.Range(1, 12)
                                 .Select(i => new CasillaDto
@@ -463,6 +449,66 @@ namespace FacturacionAPI.Services
             await _context.SaveChangesAsync();
 
             return await GetVisitaCliente(clienteId);
+        }
+
+        public async Task<TarjetaClienteResponse> GetVisitaClientePorHijo(int childrenClientId)
+        {
+            var hijo = await _context.ChildrenClient.FirstOrDefaultAsync(x => x.Id == childrenClientId);
+            if (hijo == null) throw new ApplicationException("Hijo no encontrado.");
+
+            var visitas = await _context.VisitaClientes
+                .Where(x => x.ChildrenClientId == childrenClientId && x.CicloTarjeta == hijo.TarjetaCicloActual)
+                .OrderBy(x => x.Fecha)
+                .ToListAsync();
+
+            var casillas = Enumerable.Range(1, 12)
+                .Select(i => new CasillaDto
+                {
+                    Id = i,
+                    Marcada = i <= visitas.Count,
+                    Label = ObtenerLabelPorCasilla(i),
+                    Fecha = i <= visitas.Count ? visitas[i - 1].Fecha : null
+                })
+                .ToList();
+
+            return new TarjetaClienteResponse
+            {
+                ClienteId = hijo.ClientId,
+                ChildrenClientId = hijo.Id,
+                NombreHijo = $"{hijo.FirstName} {hijo.LastName}",
+                TotalVisitas = visitas.Count,
+                Casillas = casillas,
+                DescuentoActual = CalcularDescuento(visitas.Count)
+            };
+        }
+
+        public async Task<TarjetaClienteResponse> RegistrarVisitaClientePorHijo(int childrenClientId)
+        {
+            var hijo = await _context.ChildrenClient.FirstOrDefaultAsync(x => x.Id == childrenClientId);
+            if (hijo == null) throw new ApplicationException("Hijo no encontrado.");
+
+            _context.VisitaClientes.Add(new VisitaCliente
+            {
+                ClienteId = hijo.ClientId,
+                ChildrenClientId = hijo.Id,
+                Fecha = DateTime.Now,
+                CicloTarjeta = hijo.TarjetaCicloActual
+            });
+
+            await _context.SaveChangesAsync();
+
+            return await GetVisitaClientePorHijo(childrenClientId);
+        }
+
+        public async Task<TarjetaClienteResponse> ResetTarjetaHijo(int childrenClientId)
+        {
+            var hijo = await _context.ChildrenClient.FirstOrDefaultAsync(x => x.Id == childrenClientId);
+            if (hijo == null) throw new ApplicationException("Hijo no encontrado.");
+
+            hijo.TarjetaCicloActual++;
+            await _context.SaveChangesAsync();
+
+            return await GetVisitaClientePorHijo(childrenClientId);
         }
     }
 }

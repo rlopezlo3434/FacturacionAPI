@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace FacturacionAPI.Migrations
 {
     [DbContext(typeof(SistemaVentasDbContext))]
-    [Migration("20260530132219_PreVenta_EsPreVenta")]
-    partial class PreVenta_EsPreVenta
+    [Migration("20260615093142_TarjetaPorHijo")]
+    partial class TarjetaPorHijo
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -47,6 +47,9 @@ namespace FacturacionAPI.Migrations
                     b.Property<string>("EnlaceXml")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("EnviadoNubefact")
+                        .HasColumnType("bit");
 
                     b.Property<DateTime>("FechaRegistro")
                         .HasColumnType("datetime2");
@@ -191,6 +194,9 @@ namespace FacturacionAPI.Migrations
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("TarjetaCicloActual")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -808,6 +814,9 @@ namespace FacturacionAPI.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int?>("ChildrenClientId")
+                        .HasColumnType("int");
 
                     b.Property<int>("CicloTarjeta")
                         .HasColumnType("int");

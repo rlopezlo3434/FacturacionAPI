@@ -4,6 +4,7 @@
     {
         public int Id { get; set; }
         public int ClienteId { get; set; }
+        public int? ChildrenClientId { get; set; }
         public DateTime Fecha { get; set; }
         public int CicloTarjeta { get; set; }
 
