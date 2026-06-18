@@ -49,14 +49,14 @@ namespace FacturacionAPI.Services
             var doc = new HtmlToPdfDocument()
             {
                 GlobalSettings = {
-            PaperSize = PaperKind.A4
-        },
+                    PaperSize = PaperKind.A4
+                },
                 Objects = {
-            new ObjectSettings {
-                HtmlContent = html,
-                WebSettings = { DefaultEncoding = "utf-8" }
+                    new ObjectSettings {
+                        HtmlContent = html,
+                        WebSettings = { DefaultEncoding = "utf-8" }
+                    }
                 }
-            }
             };
 
             return _converter.Convert(doc);
@@ -1876,6 +1876,25 @@ body {{
                             margin: 15px 0;
                         }}
                     </style>
+                    <style>
+                        .obs-footer ul, .obs-footer ol {{
+                            margin: 4px 0;
+                            padding-left: 20px;
+                            page-break-inside: auto;
+                        }}
+                        .obs-footer li {{
+                            page-break-inside: avoid;
+                            font-size: 11px;
+                            line-height: 1.6;
+                        }}
+                        .obs-footer p {{
+                            font-size: 11px;
+                            line-height: 1.6;
+                            margin: 4px 0;
+                            word-spacing: 6px;
+                            letter-spacing: 0;
+                        }}
+                    </style>
                     <body>
                     <div class='header'>
                         <img src='{imageUrl}' />
@@ -2912,11 +2931,8 @@ body {{
 
             if (!string.IsNullOrWhiteSpace(data.Extras))
             {
-                var extras = data.Extras
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(x => x.Trim());
-
-                extrasHtml = string.Join("", extras.Select(x => $"<div>• {x}</div>"));
+                var extrasContent = data.Extras.Replace("&nbsp;", " ");
+                extrasHtml = $"<div style='font-size:11px; line-height:1.6; padding: 10px; page-break-inside: auto;'>{extrasContent}</div>";
             }
             return $@"
                     <style>
