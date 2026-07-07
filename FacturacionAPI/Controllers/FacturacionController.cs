@@ -78,6 +78,38 @@ namespace FacturacionAPI.Controllers
             return Content(result, "application/json");
         }
 
+        // [Authorize]
+        [HttpGet("consultar-documento/{numero}")]
+        public async Task<IActionResult> GetDocumento2(string numero, [FromQuery] string tipo)
+        {
+            var token = "ls_live_2fec09a9c6bbaa8a5d397bb6a8c04a0612dea69aee7b47d0"; // LOPEZ
+            //var token = "sk_11995.J1PfLkwiUFu24TB242NfB8y3sFWkaXCH";
+            string url;
+
+            if (tipo == "Ruc")
+            {
+                url = $"https://www.softwarelion.pe/api/lion-api/v1/consulta-ruc/{numero}";
+            }
+            else
+            {
+                url = $"https://www.softwarelion.pe/api/lion-api/v1/consulta-dni/{numero}";
+            }
+
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("x-api-key", token);
+
+            var response = await _httpClient.SendAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                return StatusCode((int)response.StatusCode, error);
+            }
+
+            var result = await response.Content.ReadAsStringAsync();
+            return Content(result, "application/json");
+        }
+
         [Authorize]
         [HttpPost("registrar-venta")]
         public async Task<IActionResult> RegistrarVenta([FromBody] VentaRequest request)
@@ -124,6 +156,25 @@ namespace FacturacionAPI.Controllers
             var data = await http.GetByteArrayAsync(url);
 
             return File(data, "application/pdf", "comprobante.pdf");
+        }
+
+        //[Authorize]
+        [HttpPost("nota-credito/{ventaId}")]
+        public async Task<IActionResult> GenerarNotaCredito(int ventaId, [FromQuery] int tipoNotaCredito = 1, [FromQuery] string? motivo = null)
+        {
+            try
+            {
+                var resultado = await _facturacionService.GenerarNotaCreditoAsync(ventaId, tipoNotaCredito, motivo);
+                return Ok(resultado);
+            }
+            catch (ApplicationException ex)
+            {
+                return BadRequest(new { success = false, message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error interno del servidor", detalle = ex.Message });
+            }
         }
 
         [Authorize]
@@ -185,11 +236,14 @@ namespace FacturacionAPI.Controllers
 
         [Authorize]
         [HttpGet("listar")]
-        public async Task<IActionResult> ListarComprobantes([FromQuery] DateTime fecha)
+        public async Task<IActionResult> ListarComprobantes([FromQuery] DateTime? fecha)
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            var comprobantes = await _facturacionService.GetComprobantes(establishmentId, fecha);
+            var inicio = (fecha ?? DateTime.Today).Date;
+            var fin = inicio.AddDays(1);
+
+            var comprobantes = await _facturacionService.GetComprobantes(establishmentId, inicio, fin);
             if (comprobantes == null)
                 return NotFound(new { Message = "No se encontraron comprobantes para este establecimiento" });
 

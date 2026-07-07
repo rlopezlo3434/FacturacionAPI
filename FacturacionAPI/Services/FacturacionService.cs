@@ -545,6 +545,168 @@ namespace FacturacionAPI.Services
         }
 
 
+        public async Task<object> GenerarNotaCreditoAsync(int ventaId, int tipoNotaCredito = 1, string? motivo = null)
+        {
+            var venta = await _context.Ventas
+                .Include(v => v.Detalles)
+                .Include(v => v.Establishment)
+                .FirstOrDefaultAsync(v => v.Id == ventaId)
+                ?? throw new ApplicationException("Venta no encontrada.");
+
+            if (venta.IsAnnulled)
+                throw new ApplicationException("La venta ya está anulada.");
+
+            var establishment = venta.Establishment;
+
+            // Derivar serie NC: F001 → FC01, B001 → BC01
+            bool esFactura = venta.TipoComprobante.ToUpper() == "FACTURA";
+            int tipoOriginal = esFactura ? 1 : 2;
+
+            string serieOrigen = esFactura
+                ? (establishment.SerieFactura ?? venta.Serie)
+                : (establishment.SerieBoleta ?? venta.Serie);
+
+            // Convención peruana: FC01 para NC de factura, BC01 para NC de boleta
+            string serieNC = esFactura ? "FC02" : "BC02";
+
+            // Obtener correlativo para la serie NC
+            var correlativo = await _context.Ventas
+                .Where(v => v.Serie == serieNC && v.EstablishmentId == venta.EstablishmentId)
+                .OrderByDescending(v => v.Numero)
+                .Select(v => v.Numero)
+                .FirstOrDefaultAsync();
+
+            var nuevoCorrelativo = correlativo == 0 ? 1 : correlativo + 1;
+
+            // Un único ítem resumen con el monto exacto del comprobante original.
+            decimal totalGravadaNC = venta.TotalGravada;
+            decimal totalIgvNC = venta.TotalIgv;
+            decimal totalNC = venta.Total;
+
+            // Nubefact exige precio_unitario = valor_unitario * 1.18 estrictamente.
+            // Si la venta original tenía descuento, el total no cierra con ese cálculo,
+            // por eso se envía descuento_general para que el header siga siendo correcto.
+            decimal precioUnitarioBruto = Math.Round(totalGravadaNC * FACTOR_IGV, 2);
+            decimal descuentoGeneral = Math.Round(precioUnitarioBruto - totalNC, 2);
+
+            var items = new[]
+            {
+                new
+                {
+                    unidad_de_medida = "NIU",
+                    codigo = "NC",
+                    descripcion = $"ANULACION DE {venta.TipoComprobante} {venta.Serie}-{venta.Numero:D8}",
+                    cantidad = 1m,
+                    valor_unitario = totalGravadaNC,
+                    precio_unitario = precioUnitarioBruto,
+                    subtotal = totalGravadaNC,
+                    tipo_de_igv = 1,
+                    igv = totalIgvNC,
+                    total = precioUnitarioBruto
+                }
+            };
+
+            var motivoTexto = motivo ?? "ANULACION DE LA OPERACION";
+
+            var payload = new
+            {
+                operacion = "generar_comprobante",
+                tipo_de_comprobante = 3,
+                sunat_transaction = 1,
+                serie = serieNC,
+                numero = nuevoCorrelativo,
+                tipo_de_nota_de_credito = tipoNotaCredito,
+                motivo_o_sustento_de_la_nota_de_credito = motivoTexto,
+                documento_que_se_modifica_tipo = tipoOriginal,
+                documento_que_se_modifica_serie = venta.Serie,
+                documento_que_se_modifica_numero = venta.Numero,
+                cliente_tipo_de_documento = venta.ClienteDocumento.Length == 8 ? 1 : 6,
+                cliente_numero_de_documento = venta.ClienteDocumento,
+                cliente_denominacion = venta.ClienteNombre,
+                cliente_direccion = venta.Direccion,
+                fecha_de_emision = DateTime.Now.ToString("dd-MM-yyyy"),
+                moneda = 1,
+                porcentaje_de_igv = IGV_PERCENT,
+                descuento_global = descuentoGeneral > 0 ? descuentoGeneral : (decimal?)null,
+                total_descuento = descuentoGeneral > 0 ? descuentoGeneral : (decimal?)null,
+                total_gravada = totalGravadaNC,
+                total_igv = totalIgvNC,
+                total = totalNC,
+                enviar_automaticamente_a_la_sunat = true,
+                enviar_automaticamente_al_cliente = false,
+                items
+            };
+
+            var json = JsonSerializer.Serialize(payload);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            _httpClient.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Token", establishment.TokenNubefact);
+
+            var response = await _httpClient.PostAsync(establishment.urlNubefact, content);
+            var result = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+                throw new ApplicationException($"Error en Nubefact: {result}");
+
+            var nubefactResp = JsonSerializer.Deserialize<JsonElement>(result);
+
+            // Guardar la NC como una nueva venta en BD
+            var notaCredito = new Venta
+            {
+                TipoComprobante = "NOTA DE CREDITO",
+                Serie = serieNC,
+                Numero = nuevoCorrelativo,
+                ClienteDocumento = venta.ClienteDocumento,
+                ClienteNombre = venta.ClienteNombre,
+                Direccion = venta.Direccion,
+                TotalGravada = totalGravadaNC,
+                TotalIgv = totalIgvNC,
+                Total = totalNC,
+                Observaciones = $"NC de {venta.TipoComprobante} {venta.Serie}-{venta.Numero}. {motivoTexto}",
+                FechaEmision = DateTime.Now,
+                MetodoPago = venta.MetodoPago,
+                EstablishmentId = venta.EstablishmentId,
+                Marca = venta.Marca,
+                Modelo = venta.Modelo,
+                Anio = venta.Anio,
+                Placa = venta.Placa,
+                CodigoHash = nubefactResp.TryGetProperty("codigo_hash", out var hash) ? hash.GetString() : null,
+                EnlacePdf = nubefactResp.TryGetProperty("enlace_del_pdf", out var pdf) ? pdf.GetString() : null,
+                EnlaceXml = nubefactResp.TryGetProperty("enlace_del_xml", out var xml) ? xml.GetString() : null,
+                EnlaceCdr = nubefactResp.TryGetProperty("enlace_del_cdr", out var cdr) ? cdr.GetString() : null,
+                Detalles = venta.Detalles.Select(d => new VentaDetalle
+                {
+                    Codigo = d.Codigo,
+                    Descripcion = d.Descripcion,
+                    Cantidad = d.Cantidad,
+                    ValorUnitario = d.ValorUnitario,
+                    PrecioUnitario = d.PrecioUnitario,
+                    Subtotal = d.Subtotal,
+                    Igv = d.Igv,
+                    Total = d.Total
+                }).ToList()
+            };
+
+            _context.Ventas.Add(notaCredito);
+
+            // Marcar la venta original como anulada
+            venta.IsAnnulled = true;
+            _context.Ventas.Update(venta);
+
+            await _context.SaveChangesAsync();
+
+            return new
+            {
+                success = true,
+                message = "Nota de crédito generada correctamente en SUNAT",
+                notaCreditoId = notaCredito.Id,
+                correlativo = $"{serieNC}-{nuevoCorrelativo:D8}",
+                ventaOriginalId = ventaId,
+                enlacePdf = notaCredito.EnlacePdf
+            };
+        }
+
         public async Task<VentaDetalleResponseDto?> ObtenerVentaDetalleAsync(int ventaId)
         {
             var venta = await _context.Ventas
@@ -625,14 +787,10 @@ namespace FacturacionAPI.Services
                 .ToListAsync();
         }
 
-        public async Task<object> GetComprobantes(int establishmentId, DateTime fecha)
+        public async Task<object> GetComprobantes(int establishmentId, DateTime inicio, DateTime fin)
         {
-            var inicio = fecha.Date;
-            var fin = fecha.Date.AddDays(1);
-
             var lista = await _context.Ventas
-               //.Where(v => v.EstablishmentId == establishmentId && v.FechaEmision >= inicio && v.FechaEmision < fin) // Factura o Boleta
-               .Where(v => v.EstablishmentId == establishmentId) // Factura o Boleta
+               .Where(v => v.FechaEmision >= inicio && v.FechaEmision < fin)
                .OrderByDescending(v => v.FechaEmision)
                .Select(v => new
                {

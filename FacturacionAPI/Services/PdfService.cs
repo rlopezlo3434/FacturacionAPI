@@ -2496,13 +2496,16 @@ body {{
                 {
                     Item = i,
                     Quantity = workOrderMap[i.Id],
-                    Total = workOrderMap[i.Id] * i.UnitPrice
+                    Total = (workOrderMap[i.Id] * i.UnitPrice) - i.Discount
                 })
                 .ToList();
 
+            var descuentos = allItems
+                .Where(i => i.Service != null && i.Service.IsDiscount == true)
+                .ToList();
             // 🔥 4. Separar OTROS vs NORMALES
             var otros = servicios
-                .Where(x => x.Item.Service != null && x.Item.Service.IsThird) 
+                .Where(x => x.Item.Service != null && x.Item.Service.IsThird && !x.Item.Service.IsDiscount)
                 .ToList();
 
             var serviciosNormales = servicios
@@ -2586,7 +2589,21 @@ body {{
 
                 itemIndex++;
             }
-
+string filasDescuento = "";
+            foreach (var desc in descuentos)
+            {
+                string celdaDsctoVacia = tieneDescuento ? "<td></td>" : "";
+                filasDescuento += $@"
+                <tr style='background:#fff3cd;'>
+                    <td class='center'>-</td>
+                    <td class='center'>{desc.Quantity}</td>
+                    <td class='center'>UND</td>
+                    <td class='servicio-main' style='color:#b8860b;'>⬇ {desc.Service!.Name}</td>
+                    <td class='right' style='color:#b8860b;'>{Math.Abs(desc.UnitPrice):0.00}</td>
+                    {celdaDsctoVacia}
+                    <td class='right' style='color:#c0392b; font-weight:bold;'>-{Math.Abs(desc.TotalPrice):0.00}</td>
+                </tr>";
+            }
             // 🔥 TOTAL GENERAL SERVICIOS
             decimal totalGeneral = serviciosNormales.Sum(x => x.Item.Discount > 0
                 ? x.Item.UnitPrice * x.Quantity - x.Item.Discount
@@ -2702,6 +2719,8 @@ body {{
 
 {filas}
 
+{filasDescuento}
+
 <tr>
     <td colspan='{colspanTotal}' class='right'><b>Sub total</b></td>
     <td class='right'><b>{totalGeneral:0.00}</b></td>
@@ -2716,7 +2735,7 @@ body {{
         private string GenerarOtrosDemo(VehicleBudgetDetailDto data)
         {
             var otros = data.Items
-                .Where(i => i.Service != null && i.Service.IsThird)
+                .Where(i => i.Service != null && i.Service.IsThird && !i.Service.IsDiscount)
                 .ToList();
 
             if (!otros.Any())
@@ -2809,9 +2828,15 @@ body {{
                 .GroupBy(i => i.BudgetItemId)
                 .ToDictionary(g => g.Key!, g => g.Sum(x => x.Quantity));
 
-            decimal subtotal = allItems
-                .Where(i => workOrderMap.ContainsKey(i.Id))
+            decimal subtotalBase = allItems
+                .Where(i => workOrderMap.ContainsKey(i.Id) && !(i.Service != null && i.Service.IsDiscount == true))
                 .Sum(i => workOrderMap[i.Id] * i.UnitPrice - i.Discount);
+
+            decimal totalDescuentos = allItems
+                .Where(i => i.Service != null && i.Service.IsDiscount == true && workOrderMap.ContainsKey(i.Id))
+                .Sum(i => Math.Abs(i.TotalPrice));
+
+            decimal subtotal = subtotalBase - totalDescuentos;
 
             decimal igv = subtotal * 0.18m;
             decimal total = subtotal + igv;
