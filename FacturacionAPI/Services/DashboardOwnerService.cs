@@ -19,21 +19,35 @@ namespace FacturacionAPI.Services
             return _context.Ventas.Where(v => !v.IsAnnulled);
         }
 
+        // Si la fecha es del mes actual → MTD (del 1 hasta ese día).
+        // Si la fecha es de un mes pasado → mes completo.
+        // El mes anterior sigue la misma lógica (MTD vs mes completo).
+        private (DateTime inicioActual, DateTime finActual, DateTime inicioAnterior, DateTime finAnterior) ObtenerRangos(DateTime fecha)
+        {
+            var hoy = DateTime.Today;
+            bool esMesActual = fecha.Year == hoy.Year && fecha.Month == hoy.Month;
+
+            var inicioActual = new DateTime(fecha.Year, fecha.Month, 1);
+            var inicioAnterior = inicioActual.AddMonths(-1);
+
+            DateTime finActual, finAnterior;
+
+            if (esMesActual)
+                finActual = fecha.Date.AddDays(1).AddTicks(-1);
+            else
+                finActual = new DateTime(fecha.Year, fecha.Month,
+                    DateTime.DaysInMonth(fecha.Year, fecha.Month), 23, 59, 59, 999);
+
+            // Mes anterior siempre es el mes completo
+            finAnterior = new DateTime(inicioAnterior.Year, inicioAnterior.Month,
+                DateTime.DaysInMonth(inicioAnterior.Year, inicioAnterior.Month), 23, 59, 59, 999);
+
+            return (inicioActual, finActual, inicioAnterior, finAnterior);
+        }
+
         public async Task<OwnerKpisDto> GetKpis(DateTime fecha)
         {
-            // ============================================
-            // Rangos de fechas
-            // Ejemplo: hoy = 4 de febrero
-            // Mes actual    : 1–4 febrero
-            // Mes anterior  : 1–4 enero
-            // ============================================
-
-            var inicioMesActual = new DateTime(fecha.Year, fecha.Month, 1);
-            var finMesActual = fecha.Date.AddDays(1).AddTicks(-1); // fin del día
-
-            var inicioMesAnterior = inicioMesActual.AddMonths(-1);
-            var finMesAnterior = inicioMesAnterior.AddDays(fecha.Day)
-                                                  .AddTicks(-1);
+            var (inicioMesActual, finMesActual, inicioMesAnterior, finMesAnterior) = ObtenerRangos(fecha);
 
             // ============================================
             // Ventas
@@ -102,33 +116,39 @@ namespace FacturacionAPI.Services
 
         public async Task<List<VentasPorTiendaDto>> GetVentasPorTienda(DateTime fecha)
         {
-            var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
+            var (inicioActual, finActual, _, _) = ObtenerRangos(fecha);
 
-            return await VentasValidas()
-                .Where(v => v.FechaEmision >= inicioMes && v.FechaEmision <= fecha)
+            var ventas = await VentasValidas()
+                .Include(v => v.Establishment)
+                .Include(v => v.Detalles)
+                .Where(v => v.FechaEmision >= inicioActual && v.FechaEmision <= finActual)
+                .ToListAsync();
+
+            return ventas
                 .GroupBy(v => v.Establishment.Name)
                 .Select(g => new VentasPorTiendaDto
                 {
                     Tienda = g.Key,
-                    Total = g.Sum(x => x.Total)
+                    Total = g.Sum(x => x.Total),
+                    Servicios = (int)g.SelectMany(x => x.Detalles).Sum(d => d.Cantidad)
                 })
                 .OrderByDescending(x => x.Total)
-                .ToListAsync();
+                .ToList();
         }
 
         public async Task<List<VentasAcumuladasDto>> GetVentasAcumuladas(DateTime fecha)
         {
-            var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
-            var inicioMesAnterior = inicioMes.AddMonths(-1);
+            var (inicioActual, finActual, inicioAnterior, finAnterior) = ObtenerRangos(fecha);
 
             return await VentasValidas()
-                .Where(v => v.FechaEmision >= inicioMesAnterior && v.FechaEmision <= fecha)
+                .Where(v => (v.FechaEmision >= inicioActual && v.FechaEmision <= finActual) ||
+                            (v.FechaEmision >= inicioAnterior && v.FechaEmision <= finAnterior))
                 .GroupBy(v => v.FechaEmision.Day)
                 .Select(g => new VentasAcumuladasDto
                 {
                     Dia = g.Key,
-                    MesActual = g.Where(x => x.FechaEmision.Month == fecha.Month).Sum(x => x.Total),
-                    MesAnterior = g.Where(x => x.FechaEmision.Month == inicioMesAnterior.Month).Sum(x => x.Total)
+                    MesActual = g.Where(x => x.FechaEmision >= inicioActual && x.FechaEmision <= finActual).Sum(x => x.Total),
+                    MesAnterior = g.Where(x => x.FechaEmision >= inicioAnterior && x.FechaEmision <= finAnterior).Sum(x => x.Total)
                 })
                 .OrderBy(x => x.Dia)
                 .ToListAsync();
@@ -136,9 +156,7 @@ namespace FacturacionAPI.Services
 
         public async Task<List<DesviacionTiendaDto>> GetDesviacionPorTienda(DateTime fecha)
         {
-            var inicioMes = new DateTime(fecha.Year, fecha.Month, 1);
-            var inicioMesAnterior = inicioMes.AddMonths(-1);
-            var diaCorte = fecha.Day;
+            var (inicioActual, finActual, inicioAnterior, finAnterior) = ObtenerRangos(fecha);
 
             return await _context.Establishment
                 .Select(e => new DesviacionTiendaDto
@@ -146,10 +164,9 @@ namespace FacturacionAPI.Services
                     Tienda = e.Name,
                     Diferencia =
                         VentasValidas().Where(v => v.EstablishmentId == e.Id &&
-                            v.FechaEmision >= inicioMes && v.FechaEmision <= fecha).Sum(v => (decimal?)v.Total) -
+                            v.FechaEmision >= inicioActual && v.FechaEmision <= finActual).Sum(v => (decimal?)v.Total) -
                         VentasValidas().Where(v => v.EstablishmentId == e.Id &&
-                            v.FechaEmision >= inicioMesAnterior &&
-                            v.FechaEmision < inicioMesAnterior.AddDays(diaCorte)).Sum(v => (decimal?)v.Total)
+                            v.FechaEmision >= inicioAnterior && v.FechaEmision <= finAnterior).Sum(v => (decimal?)v.Total)
                         ?? 0
                 })
                 .ToListAsync();

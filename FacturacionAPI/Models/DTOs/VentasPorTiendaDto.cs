@@ -4,5 +4,6 @@
     {
         public string Tienda { get; set; }
         public decimal Total { get; set; }
+        public int Servicios { get; set; }
     }
 }
