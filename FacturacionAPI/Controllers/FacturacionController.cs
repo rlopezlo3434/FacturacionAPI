@@ -236,12 +236,12 @@ namespace FacturacionAPI.Controllers
 
         [Authorize]
         [HttpGet("listar")]
-        public async Task<IActionResult> ListarComprobantes([FromQuery] DateTime? fecha)
+        public async Task<IActionResult> ListarComprobantes([FromQuery] DateTime? desde, [FromQuery] DateTime? hasta)
         {
             var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
 
-            var inicio = (fecha ?? DateTime.Today).Date;
-            var fin = inicio.AddDays(1);
+            var inicio = (desde ?? DateTime.Today).Date;
+            var fin = (hasta ?? inicio).Date.AddDays(1);
 
             var comprobantes = await _facturacionService.GetComprobantes(establishmentId, inicio, fin);
             if (comprobantes == null)

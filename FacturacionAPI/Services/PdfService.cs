@@ -2584,7 +2584,7 @@ body {{
     <td class='servicio-main'>{descripcion}</td>
     <td class='right'>{item.Item.UnitPrice:0.00}</td>
     {celdaDscto}
-    <td class='right'>{item.Total - item.Item.Discount:0.00}</td>
+    <td class='right'>{item.Total:0.00}</td>
 </tr>";
 
                 itemIndex++;
@@ -2842,16 +2842,12 @@ string filasDescuento = "";
             decimal total = subtotal + igv;
 
             var extrasHtml = "";
-            var extrasLista = data
-                .Where(x => !string.IsNullOrWhiteSpace(x.Extras))
-                .SelectMany(x => x.Extras!
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(e => e.Trim()))
-                .Distinct()
-                .ToList();
-
-            if (extrasLista.Any())
-                extrasHtml = string.Join("", extrasLista.Select(x => $"<div>• {x}</div>"));
+            var extrasRaw = data.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x.Extras))?.Extras;
+            if (!string.IsNullOrWhiteSpace(extrasRaw))
+            {
+                var extrasContent = extrasRaw.Replace("&nbsp;", " ");
+                extrasHtml = $"<div style='font-size:11px; line-height:1.6; padding: 10px; page-break-inside: auto;'>{extrasContent}</div>";
+            }
 
             var observacionesHtml = "";
             var notas = data2.Notes;
