@@ -21,6 +21,8 @@ namespace FacturacionAPI.Models.Entities
         public string? TokenNubefact { get; set; }
         public string? SerieBoleta { get; set; }
         public string? SerieFactura { get; set; }
+        public string? SerieNotaCredito { get; set; }
+        public string? SerieNotaCredito2 { get; set; }
 
         public bool IsActive { get; set; } = true;
 

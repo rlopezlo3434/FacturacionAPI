@@ -873,7 +873,7 @@ namespace FacturacionAPI.Services
 
                                 Codigo = d.Codigo,
                                 Descripcion = d.Descripcion,
-                                Cantidad = d.Cantidad,
+                                Cantidad = d.Cantidad / empleadosServicio.Count,
 
                                 ValorUnitario = d.ValorUnitario,
                                 PrecioUnitario = d.PrecioUnitario,

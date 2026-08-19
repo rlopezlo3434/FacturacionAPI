@@ -437,6 +437,12 @@ namespace FacturacionAPI.Migrations
                     b.Property<string>("SerieFactura")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("SerieNotaCredito")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SerieNotaCredito2")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("TokenNubefact")
                         .HasColumnType("nvarchar(max)");
 
