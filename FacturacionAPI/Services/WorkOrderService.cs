@@ -66,70 +66,90 @@ namespace FacturacionAPI.Services
             return (true, $"Orden de Trabajo {code} generada correctamente.");
         }
 
-        public async Task<(bool Success, string Message)> GenerateOrUpdateWorkOrderAsync(int intakeId)
+        public async Task<(bool Success, string Message)> GenerateOrUpdateWorkOrderAsync(int intakeCorrelativo)
         {
-            var idInter= await _context.VehicleIntakes
-                .Where(x => x.Correlativo == intakeId)
-                .Select(x => x.Id)
+            var intake = await _context.VehicleIntakes
+                .Where(x => x.Correlativo == intakeCorrelativo)
+                .Select(x => new { x.Id })
                 .FirstOrDefaultAsync();
 
-            var intakeExists = await _context.VehicleIntakes.AnyAsync(x => x.Correlativo == intakeId);
-            if (!intakeExists)
+            if (intake == null)
                 return (false, "Internamiento no existe.");
 
-            var workOrder = await _context.WorkOrders
-                .FirstOrDefaultAsync(x => x.VehicleIntakeId == idInter && x.IsActive);
+            // Presupuestos activos del internamiento que tengan al menos un ítem aprobado
+            var budgets = await _context.VehicleBudgets
+                .Where(x => x.VehicleIntakeId == intake.Id && x.IsActive)
+                .Select(x => new { x.Id, x.Notes })
+                .ToListAsync();
 
-            if (workOrder == null)
+            if (!budgets.Any())
+                return (false, "No hay presupuestos activos para este internamiento.");
+
+            var creados = 0;
+            var actualizados = 0;
+
+            foreach (var budget in budgets)
             {
-                workOrder = new WorkOrder
-                {
-                    Code = await GenerateWorkOrderCodeAsync(),
-                    VehicleIntakeId = idInter,
-                    CreatedAt = DateTime.Now,
-                    IsActive = true
-                };
+                // Ítems aprobados de ESTE presupuesto
+                var approvedItemIds = await _context.VehicleBudgetItems
+                    .Where(x => x.VehicleBudgetId == budget.Id && x.IsApproved)
+                    .Select(x => x.Id)
+                    .ToListAsync();
 
-                _context.WorkOrders.Add(workOrder);
+                if (!approvedItemIds.Any())
+                    continue; // presupuesto sin ítems aprobados → sin OT
+
+                // Buscar OT existente vinculada a este presupuesto
+                var workOrder = await _context.WorkOrders
+                    .FirstOrDefaultAsync(x => x.VehicleIntakeId == intake.Id && x.BudgetId == budget.Id);
+
+                if (workOrder == null)
+                {
+                    workOrder = new WorkOrder
+                    {
+                        Code = await GenerateWorkOrderCodeAsync(),
+                        VehicleIntakeId = intake.Id,
+                        BudgetId = budget.Id,
+                        Notes = budget.Notes,
+                        CreatedAt = DateTime.Now,
+                        IsActive = true
+                    };
+
+                    _context.WorkOrders.Add(workOrder);
+                    await _context.SaveChangesAsync();
+                    creados++;
+                }
+                else
+                {
+                    actualizados++;
+                }
+
+                // Sincronizar ítems: eliminar los que ya no están aprobados, agregar los nuevos
+                var currentItems = await _context.WorkOrderItems
+                    .Where(x => x.WorkOrderId == workOrder.Id)
+                    .ToListAsync();
+
+                var toRemove = currentItems
+                    .Where(w => !approvedItemIds.Contains(w.VehicleBudgetItemId))
+                    .ToList();
+
+                _context.WorkOrderItems.RemoveRange(toRemove);
+
+                var existingIds = currentItems.Select(w => w.VehicleBudgetItemId).ToHashSet();
+
+                var toAdd = approvedItemIds
+                    .Where(id => !existingIds.Contains(id))
+                    .Select(id => new WorkOrderItem
+                    {
+                        WorkOrderId = workOrder.Id,
+                        VehicleBudgetItemId = id
+                    });
+
+                _context.WorkOrderItems.AddRange(toAdd);
                 await _context.SaveChangesAsync();
             }
 
-            // IDs de todos los budget items aprobados del internamiento
-            var approvedBudgetItemIds = await _context.VehicleBudgetItems
-                .Where(x => x.VehicleBudget.VehicleIntakeId == idInter && x.IsApproved)
-                .Select(x => x.Id)
-                .ToListAsync();
-
-            // WorkOrderItems actuales de esta OT
-            var currentWorkOrderItems = await _context.WorkOrderItems
-                .Where(x => x.WorkOrderId == workOrder.Id)
-                .ToListAsync();
-
-            // Eliminar los que ya no están aprobados
-            var toRemove = currentWorkOrderItems
-                .Where(w => !approvedBudgetItemIds.Contains(w.VehicleBudgetItemId))
-                .ToList();
-
-            _context.WorkOrderItems.RemoveRange(toRemove);
-
-            // Agregar los aprobados que aún no están en la OT
-            var existingIds = currentWorkOrderItems
-                .Select(w => w.VehicleBudgetItemId)
-                .ToHashSet();
-
-            var toAdd = approvedBudgetItemIds
-                .Where(id => !existingIds.Contains(id))
-                .Select(id => new WorkOrderItem
-                {
-                    WorkOrderId = workOrder.Id,
-                    VehicleBudgetItemId = id
-                });
-
-            _context.WorkOrderItems.AddRange(toAdd);
-
-            await _context.SaveChangesAsync();
-
-            return (true, $"Orden de Trabajo {workOrder.Code} sincronizada con {approvedBudgetItemIds.Count} ítems aprobados.");
+            return (true, $"Órdenes de trabajo sincronizadas: {creados} creadas, {actualizados} actualizadas.");
         }
 
         private async Task<string> GenerateWorkOrderCodeAsync()

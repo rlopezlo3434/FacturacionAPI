@@ -891,74 +891,124 @@ namespace FacturacionAPI.Services
         }
 
         public async Task<(bool Success, string Message, int InvoiceId)>
-        CreateInvoiceFromApprovedItemsAsync(int intakeId)
+        CreateInvoiceFromApprovedItemsAsync(int intakeCorrelativo)
         {
             var realIntakeId = await _context.VehicleIntakes
-                .Where(x => x.Correlativo == intakeId)
+                .Where(x => x.Correlativo == intakeCorrelativo)
                 .Select(x => x.Id)
                 .FirstOrDefaultAsync();
 
             if (realIntakeId == 0)
                 return (false, "Internamiento no existe.", 0);
 
-            // Buscar o crear la invoice del internamiento
-            var invoice = await _context.Invoices
-                .FirstOrDefaultAsync(x => x.VehicleIntakeId == realIntakeId && x.IsActive);
+            // Presupuestos activos con al menos un ítem aprobado
+            var budgets = await _context.VehicleBudgets
+                .Where(x => x.VehicleIntakeId == realIntakeId && x.IsActive)
+                .Select(x => new { x.Id, x.Moneda })
+                .ToListAsync();
 
-            if (invoice == null)
+            if (!budgets.Any())
+                return (false, "No hay presupuestos activos para este internamiento.", 0);
+
+            int lastInvoiceId = 0;
+            int totalCreados = 0;
+
+            foreach (var budget in budgets)
             {
-                invoice = new Invoice
+                // Ítems aprobados de este presupuesto, incluyendo datos del paquete
+                var approvedItems = await _context.VehicleBudgetItems
+                    .Include(x => x.ServicePackage)
+                    .Where(x => x.IsApproved && x.VehicleBudgetId == budget.Id)
+                    .ToListAsync();
+
+                if (!approvedItems.Any())
+                    continue;
+
+                // Buscar o crear Invoice vinculada a este presupuesto
+                var invoice = await _context.Invoices
+                    .FirstOrDefaultAsync(x => x.VehicleIntakeId == realIntakeId && x.BudgetId == budget.Id);
+
+                if (invoice == null)
                 {
-                    VehicleIntakeId = realIntakeId,
-                    CreatedAt = DateTime.Now,
-                    IsActive = true
-                };
-                _context.Invoices.Add(invoice);
+                    invoice = new Invoice
+                    {
+                        VehicleIntakeId = realIntakeId,
+                        BudgetId = budget.Id,
+                        CreatedAt = DateTime.Now,
+                        IsActive = true
+                    };
+                    _context.Invoices.Add(invoice);
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    // Limpiar items anteriores
+                    var oldItems = await _context.InvoicesItem
+                        .Where(x => x.InvoiceId == invoice.Id)
+                        .ToListAsync();
+                    _context.InvoicesItem.RemoveRange(oldItems);
+                    await _context.SaveChangesAsync();
+                }
+
+                // Ítems sin paquete → uno por uno (Productos y Otros)
+                var sinPaquete = approvedItems.Where(x => x.ServicePackageId == null).ToList();
+                foreach (var item in sinPaquete)
+                {
+                    _context.InvoicesItem.Add(new InvoiceItem
+                    {
+                        InvoiceId = invoice.Id,
+                        VehicleBudgetItemId = item.Id,
+                        ItemType = item.ItemType,
+                        ProductId = item.ProductId,
+                        ServiceMasterId = item.ServiceMasterId,
+                        Quantity = item.Quantity,
+                        UnitPrice = item.UnitPrice,
+                        Discount = item.Discount,
+                        TotalPrice = item.TotalPrice,
+                        ServicePackageId = null,
+                        IsPackageSummary = false
+                    });
+                }
+
+                // Ítems con paquete → colapsar por ServicePackageId (una línea por paquete)
+                var conPaquete = approvedItems
+                    .Where(x => x.ServicePackageId != null)
+                    .GroupBy(x => x.ServicePackageId!.Value);
+
+                foreach (var grupo in conPaquete)
+                {
+                    var primerItem = grupo.First();
+                    var totalPaquete = grupo.Sum(x => x.TotalPrice);
+                    var nombrePaquete = primerItem.ServicePackage?.Description ?? $"Paquete {grupo.Key}";
+
+                    _context.InvoicesItem.Add(new InvoiceItem
+                    {
+                        InvoiceId = invoice.Id,
+                        VehicleBudgetItemId = primerItem.Id,
+                        ItemType = primerItem.ItemType,
+                        ProductId = null,
+                        ServiceMasterId = null,
+                        Quantity = 1,
+                        UnitPrice = totalPaquete,
+                        Discount = 0,
+                        TotalPrice = totalPaquete,
+                        ServicePackageId = grupo.Key,
+                        IsPackageSummary = true,
+                        PackageDescription = nombrePaquete
+                    });
+                }
+
+                invoice.Total = approvedItems.Sum(x => x.TotalPrice);
                 await _context.SaveChangesAsync();
+
+                lastInvoiceId = invoice.Id;
+                totalCreados++;
             }
 
-            // 1. Eliminar todos los items anteriores de la invoice
-            var oldItems = await _context.InvoicesItem
-                .Where(x => x.InvoiceId == invoice.Id)
-                .ToListAsync();
+            if (totalCreados == 0)
+                return (false, "No hay ítems aprobados en ningún presupuesto.", 0);
 
-            _context.InvoicesItem.RemoveRange(oldItems);
-            await _context.SaveChangesAsync();
-
-            // 2. Cargar los items aprobados actuales de todos los presupuestos del internamiento
-            var approvedItems = await _context.VehicleBudgetItems
-                .Where(x =>
-                    x.IsApproved &&
-                    x.VehicleBudget.VehicleIntakeId == realIntakeId &&
-                    x.VehicleBudget.IsActive)
-                .ToListAsync();
-
-            if (!approvedItems.Any())
-                return (false, "No hay ítems aprobados para este internamiento.", invoice.Id);
-
-            // 3. Insertar los nuevos
-            foreach (var item in approvedItems)
-            {
-                _context.InvoicesItem.Add(new InvoiceItem
-                {
-                    InvoiceId = invoice.Id,
-                    VehicleBudgetItemId = item.Id,
-                    ItemType = item.ItemType,
-                    ProductId = item.ProductId,
-                    ServiceMasterId = item.ServiceMasterId,
-                    Quantity = item.Quantity,
-                    UnitPrice = item.UnitPrice,
-                    Discount = item.Discount,
-                    TotalPrice = item.TotalPrice,
-                    ServicePackageId = item.ServicePackageId
-                });
-            }
-
-            invoice.Total = approvedItems.Sum(x => x.TotalPrice);
-
-            await _context.SaveChangesAsync();
-
-            return (true, $"Invoice sincronizada con {approvedItems.Count} ítems aprobados.", invoice.Id);
+            return (true, $"{totalCreados} invoice(s) sincronizadas para el internamiento.", lastInvoiceId);
         }
 
         public async Task<List<InvoiceSelectableItemDto>>
@@ -967,33 +1017,47 @@ namespace FacturacionAPI.Services
             var items = await _context.InvoicesItem
                                      .Include(i => i.Product)
                                      .Include(i => i.ServiceMaster)
-                                     .Select(i => new InvoiceSelectableItemDto
-                                     {
-                                         BudgetItemId = i.Id,
-                                         IntakeCode = i.VehicleBudgetItem.VehicleBudget.Code,
-                                         ClienteNombre = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Client.Names,
-                                         ClienteNumero = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Client.DocumentIdentificationNumber,
-                                         Brand = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Brand.Name,
-                                         Model = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Model.Name,
-                                         Anio = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Year,
-                                         Placa = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Plate,
-                                         Description =
-                                             i.Product != null
-                                                 ? i.Product.Name
-                                                 : i.ServiceMaster!.Name,
-                                         ItemType = (int)i.ItemType,
-                                         Quantity = i.Quantity,
-                                         Discount = i.Discount,
-                                         UnitPrice = i.UnitPrice,
-                                         SubTotal = i.TotalPrice,
-                                         Selected = false,
-                                         Invoiced = i.Invoiced,
-                                         ServicePackageId = i.ServicePackageId,
-                                         Moneda = i.VehicleBudgetItem.VehicleBudget.Moneda
-                                     })
+                                     .Include(i => i.VehicleBudgetItem)
+                                         .ThenInclude(b => b.VehicleBudget)
+                                             .ThenInclude(b => b.VehicleIntake)
+                                                 .ThenInclude(vi => vi.Client)
+                                     .Include(i => i.VehicleBudgetItem)
+                                         .ThenInclude(b => b.VehicleBudget)
+                                             .ThenInclude(b => b.VehicleIntake)
+                                                 .ThenInclude(vi => vi.Vehicle)
+                                                     .ThenInclude(v => v.Brand)
+                                     .Include(i => i.VehicleBudgetItem)
+                                         .ThenInclude(b => b.VehicleBudget)
+                                             .ThenInclude(b => b.VehicleIntake)
+                                                 .ThenInclude(vi => vi.Vehicle)
+                                                     .ThenInclude(v => v.Model)
                                      .ToListAsync();
-            return items;
-        
+
+            return items.Select(i => new InvoiceSelectableItemDto
+            {
+                BudgetItemId = i.Id,
+                IntakeCode = i.VehicleBudgetItem.VehicleBudget.Code,
+                ClienteNombre = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Client.Names,
+                ClienteNumero = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Client.DocumentIdentificationNumber,
+                Brand = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Brand.Name,
+                Model = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Model.Name,
+                Anio = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Year,
+                Placa = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Plate,
+                Description = i.IsPackageSummary
+                    ? i.PackageDescription ?? $"Paquete {i.ServicePackageId}"
+                    : i.Product != null
+                        ? i.Product.Name
+                        : i.ServiceMaster?.Name ?? "",
+                ItemType = (int)i.ItemType,
+                Quantity = i.Quantity,
+                Discount = i.Discount,
+                UnitPrice = i.UnitPrice,
+                SubTotal = i.TotalPrice,
+                Selected = false,
+                Invoiced = i.Invoiced,
+                ServicePackageId = i.ServicePackageId,
+                Moneda = i.VehicleBudgetItem.VehicleBudget.Moneda
+            }).ToList();
         }
 
 

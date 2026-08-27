@@ -53,6 +53,7 @@ namespace FacturacionAPI.Data
         public DbSet<VentaDetalle> ventaDetalles { get; set; }
         public DbSet<VentaEmpleado> ventaEmpleados { get; set; }
         public DbSet<AnulacionDocumento> AnulacionDocumento { get; set; }
+        public DbSet<DocumentoPendienteEnvio> DocumentosPendientesEnvio { get; set; }
         public DbSet<CajaApertura> CajaAperturas { get; set; }
         public DbSet<CajaMovimiento> CajaMovimientos { get; set; }
         public DbSet<CajaCierre> CajaCierres { get; set; }

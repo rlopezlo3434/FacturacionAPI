@@ -25,7 +25,8 @@ namespace FacturacionAPI.Extensions
             services.AddScoped<ProveedorService>();
             services.AddScoped<PaqueteServicioService>();
             services.AddScoped<PdfService>();
-
+            services.AddScoped<NotaCreditoService>();
+            services.AddScoped<EnvioDocumentosPendientesService>();
 
             return services;
         }

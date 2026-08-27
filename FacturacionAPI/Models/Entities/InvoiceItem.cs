@@ -35,6 +35,10 @@ namespace FacturacionAPI.Models.Entities
         public int? ServicePackageId { get; set; }
         public ServicePackage? ServicePackage { get; set; }
 
+        // true cuando este item representa un paquete completo colapsado (no un item individual)
+        public bool IsPackageSummary { get; set; } = false;
+        public string? PackageDescription { get; set; }
+
 
     }
 }

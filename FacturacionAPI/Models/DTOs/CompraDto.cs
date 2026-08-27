@@ -4,6 +4,7 @@ namespace FacturacionAPI.Models.DTOs
     {
         public int ProductId { get; set; }
         public int Cantidad { get; set; }
+        public decimal PrecioCosto { get; set; }
         public decimal PrecioCompra { get; set; }
     }
 
@@ -24,6 +25,7 @@ namespace FacturacionAPI.Models.DTOs
         public string ProductNombre { get; set; } = "";
         public string ProductCodigo { get; set; } = "";
         public int Cantidad { get; set; }
+        public decimal PrecioCosto { get; set; }
         public decimal PrecioCompra { get; set; }
     }
 

@@ -19,6 +19,9 @@ namespace FacturacionAPI.Models.Entities
         public int Cantidad { get; set; }
 
         [Column(TypeName = "decimal(18,2)")]
+        public decimal PrecioCosto { get; set; }
+
+        [Column(TypeName = "decimal(18,2)")]
         public decimal PrecioCompra { get; set; }
     }
 }

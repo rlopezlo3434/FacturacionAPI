@@ -46,6 +46,9 @@ namespace FacturacionAPI.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("EnviadoNubefact")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("FechaRegistro")
                         .HasColumnType("datetime2");
 
@@ -398,6 +401,9 @@ namespace FacturacionAPI.Migrations
 
                     b.Property<int>("CompraId")
                         .HasColumnType("int");
+
+                    b.Property<decimal>("PrecioCosto")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<decimal>("PrecioCompra")
                         .HasColumnType("decimal(18,2)");
@@ -1635,6 +1641,9 @@ namespace FacturacionAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
 
+                    b.Property<int?>("BudgetId")
+                        .HasColumnType("int");
+
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -1652,6 +1661,8 @@ namespace FacturacionAPI.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BudgetId");
 
                     b.HasIndex("VehicleIntakeId");
 
@@ -2240,11 +2251,17 @@ namespace FacturacionAPI.Migrations
 
             modelBuilder.Entity("FacturacionAPI.Models.Entities.WorkOrder", b =>
                 {
+                    b.HasOne("FacturacionAPI.Models.Entities.VehicleBudget", "Budget")
+                        .WithMany()
+                        .HasForeignKey("BudgetId");
+
                     b.HasOne("FacturacionAPI.Models.Entities.VehicleIntake", "VehicleIntake")
                         .WithMany()
                         .HasForeignKey("VehicleIntakeId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+
+                    b.Navigation("Budget");
 
                     b.Navigation("VehicleIntake");
                 });

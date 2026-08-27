@@ -21,6 +21,8 @@ namespace FacturacionAPI.Models.Entities
         public string? TokenNubefact { get; set; }
         public string? SerieBoleta { get; set; }
         public string? SerieFactura { get; set; }
+        public string? SerieNotaCredito { get; set; }   // NC para Boletas (ej: BC02)
+        public string? SerieNotaCredito2 { get; set; }  // NC para Facturas (ej: FC02)
 
         public bool IsActive { get; set; } = true;
 

@@ -40,6 +40,7 @@ namespace FacturacionAPI.Services
             {
                 ProductId = d.ProductId,
                 Cantidad = d.Cantidad,
+                PrecioCosto = d.PrecioCosto,
                 PrecioCompra = d.PrecioCompra
             }).ToList();
 
@@ -120,6 +121,7 @@ namespace FacturacionAPI.Services
                 ProductNombre = d.Product?.Name ?? "",
                 ProductCodigo = d.Product?.Code ?? "",
                 Cantidad = d.Cantidad,
+                PrecioCosto = d.PrecioCosto,
                 PrecioCompra = d.PrecioCompra
             }).ToList() ?? new()
         };

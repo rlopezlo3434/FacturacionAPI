@@ -9,6 +9,9 @@ namespace FacturacionAPI.Models.Entities
 
         public int VehicleIntakeId { get; set; }
 
+        public int? BudgetId { get; set; }
+        public VehicleBudget? Budget { get; set; }
+
         public decimal Total { get; set; }
 
         public bool IsActive { get; set; } = true;

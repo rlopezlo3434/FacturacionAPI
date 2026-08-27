@@ -1790,6 +1790,257 @@ body {{
 ";
         }
 
+        public async Task<byte[]> GenerarPdfNotaCredito(int ventaId)
+        {
+            var data = await _serviceFacturacion.ObtenerVentaDetalleAsync(ventaId);
+            var html = GenerarHtmlNotaCredito(data);
+
+            var doc = new HtmlToPdfDocument()
+            {
+                GlobalSettings =
+                {
+                    PaperSize = PaperKind.A4,
+                    Margins = new MarginSettings { Top = 8, Bottom = 8, Left = 8, Right = 8, Unit = Unit.Millimeters }
+                },
+                Objects =
+                {
+                    new ObjectSettings
+                    {
+                        HtmlContent = html,
+                        WebSettings = { DefaultEncoding = "utf-8" },
+                        LoadSettings = { BlockLocalFileAccess = false }
+                    }
+                }
+            };
+
+            return _converter.Convert(doc);
+        }
+
+        private string GenerarHtmlNotaCredito(VentaDetalleResponseDto? data)
+        {
+            var cabecera = GenerarNotaCreditoCabecera(data);
+
+            var imagePath = Path.Combine(_env.WebRootPath, "header_Factura.png");
+            var imageUrl = $"file:///{imagePath.Replace("\\", "/")}";
+
+            int filasPorPagina = 15;
+
+            var paginas = data.Detalles
+                .Select((item, index) => new { item, index })
+                .GroupBy(x => x.index / filasPorPagina)
+                .Select(g => g.Select(x => x.item).ToList())
+                .ToList();
+
+            if (!paginas.Any()) paginas.Add(new List<VentaDetalleItemDto>());
+
+            string htmlPaginas = "";
+            foreach (var itemsPagina in paginas)
+            {
+                htmlPaginas += $@"
+        <div class='page'>
+            <div class='header'>
+                <img src='{imageUrl}' />
+            </div>
+            {cabecera}
+            {GenerarDetalleNotaCreditoPaginado(data, itemsPagina)}
+        </div>";
+            }
+
+            return $@"
+    <html>
+    <head>
+        <meta charset='utf-8'>
+        <style>
+            body {{
+                margin: 0;
+                padding: 0;
+                font-family: Arial;
+                font-size: 11px;
+                line-height: 1.3;
+                letter-spacing: 0.2px;
+            }}
+            .header {{
+                width: 100%;
+                margin-bottom: 6px;
+            }}
+            .header img {{
+                width: 100%;
+                height: auto;
+            }}
+            .page {{
+                page-break-after: always;
+            }}
+            .page:last-child {{
+                page-break-after: auto;
+            }}
+        </style>
+    </head>
+    <body>
+        {htmlPaginas}
+    </body>
+    </html>";
+        }
+
+        private string GenerarNotaCreditoCabecera(VentaDetalleResponseDto? data)
+        {
+            return $@"
+<style>
+.row-container {{ width: 100%; border-collapse: collapse; }}
+.row-container td {{ vertical-align: top; }}
+.cabecera-table {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
+.cabecera-table td {{ border: 1px solid black; padding: 6px; }}
+.label-box {{ background: #507FC2; color: white; font-weight: bold; width: 120px; }}
+.factura-box {{ width: 100%; height: 100%; border: 1px solid black; text-align: center; font-family: Arial; font-weight: bold; }}
+.factura-box .linea {{ padding: 10px 5px; }}
+.factura-title {{ font-size: 16px; }}
+.factura-ruc {{ font-size: 18px; }}
+.factura-numero {{ font-size: 18px; }}
+</style>
+
+<table class='row-container'>
+    <tr>
+        <td style='width: 65%; padding-right:5px;'>
+            <table class='cabecera-table'>
+                <tr>
+                    <td class='label-box'>FECHA</td>
+                    <td colspan='3'>{data?.FechaEmision:dd/MM/yyyy}</td>
+                </tr>
+                <tr>
+                    <td class='label-box'>CLIENTE</td>
+                    <td colspan='3'>{data?.ClienteNombre}</td>
+                </tr>
+                <tr>
+                    <td class='label-box'>R.U.C. / DNI</td>
+                    <td>{data?.ClienteDocumento}</td>
+                    <td class='label-box'>MONEDA</td>
+                    <td>SOLES</td>
+                </tr>
+                <tr>
+                    <td class='label-box'>DIRECCIÓN</td>
+                    <td colspan='3'>{data?.Direccion}</td>
+                </tr>
+                <tr>
+                    <td class='label-box'>NRO PLACA</td>
+                    <td colspan='3'>{data?.Placa}</td>
+                </tr>
+            </table>
+        </td>
+        <td style='width: 35%;'>
+            <table class='factura-box'>
+                <tr><td class='linea factura-title'>NOTA DE CRÉDITO ELECTRÓNICA</td></tr>
+                <tr><td class='linea factura-ruc'>RUC: 20501583732</td></tr>
+                <tr><td class='linea factura-numero'>{data?.Serie}-{data?.Numero}</td></tr>
+            </table>
+        </td>
+    </tr>
+</table>
+<table class='cabecera-table' style='margin-top:5px;'>
+    <tr>
+        <td class='label-box'>MOTIVO</td>
+        <td colspan='5'>{data?.Observaciones}</td>
+    </tr>
+</table>
+";
+        }
+
+        private string GenerarDetalleNotaCreditoPaginado(VentaDetalleResponseDto data, List<VentaDetalleItemDto> items)
+        {
+            var filas = "";
+            int index = 1;
+
+            foreach (var item in items)
+            {
+                filas += $@"
+        <tr>
+            <td class='center'>{index}</td>
+            <td class='center'>{item.Cantidad:0.00}</td>
+            <td class='center'>UNI</td>
+            <td>{item.Descripcion.ToUpper()}</td>
+            <td class='right'>{(item.PrecioUnitario / item.Cantidad):0.00}</td>
+            <td class='right'>{item.PrecioUnitario:0.00}</td>
+        </tr>";
+                index++;
+            }
+
+            int filasFaltantes = Math.Max(0, 15 - items.Count);
+            for (int i = 0; i < filasFaltantes; i++)
+            {
+                filas += @"<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td></tr>";
+            }
+
+            var totalEnLetras = Convertir(data.Total);
+            var qr = GenerarQrBase64(data);
+
+            return $@"
+<style>
+.detalle-table {{ width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 10px; }}
+.detalle-table th {{ background: #507FC2; border: 1px solid black; padding: 5px; text-align: center; font-weight: bold; color: white; }}
+.detalle-table td {{ border-left: 1px solid black; border-right: 1px solid black; padding: 4px; line-height: 1.4; }}
+.detalle-table tr:last-child td {{ border-bottom: 1px solid black; }}
+.detalle-footer {{ border: 1px solid black; padding: 6px; font-size: 11px; margin-top: 5px; border-radius: 5px; }}
+.center {{ text-align: center; }}
+.right {{ text-align: right; }}
+.totales-box {{ width: 100%; border-collapse: collapse; font-size: 11px; }}
+.totales-box td {{ border: 1px solid black; padding: 5px; text-align: center; }}
+.totales-head td {{ background: #507FC2; color: white; font-weight: bold; text-align: center; }}
+.qr-text {{ font-size: 9px; margin-bottom: 5px; }}
+</style>
+
+<table class='detalle-table'>
+    <tr>
+        <th style='width:8%;'>ITEM</th>
+        <th style='width:10%;'>CANTIDAD</th>
+        <th style='width:10%;'>UND</th>
+        <th style='width:45%;'>DESCRIPCIÓN</th>
+        <th style='width:15%;'>VALOR UNITARIO</th>
+        <th style='width:12%;'>IMPORTE</th>
+    </tr>
+    {filas}
+    <tr>
+        <td></td><td></td><td></td>
+        <td style='padding-top:10px;'>
+            <b>MARCA:</b> {data?.Marca} &nbsp;&nbsp;
+            <b>MODELO:</b> {data?.Modelo} <br/>
+            <b>AÑO: {data?.Anio}</b>
+        </td>
+        <td></td><td></td>
+    </tr>
+</table>
+
+<div class='detalle-footer'>SON: {totalEnLetras}</div>
+
+<table style='width:100%; margin-top:10px; border-collapse:collapse; font-size:11px;'>
+    <tr>
+        <td style='width:55%; vertical-align:top;'>
+            <div class='qr-text'>
+                AUTORIZADO MEDIANTE RESOLUCIÓN DE<br/>
+                SUPERINTENDENCIA N° 155-2017/SUNAT
+            </div>
+            <img src='data:image/png;base64,{qr}' style='width:100px;' />
+        </td>
+        <td style='width:45%; vertical-align:top;'>
+            <table class='totales-box'>
+                <tr class='totales-head'>
+                    <td>SUB TOTAL</td>
+                    <td>IGV</td>
+                    <td>TOTAL</td>
+                </tr>
+                <tr>
+                    <td>S/ {data.Subtotal:0.00}</td>
+                    <td>S/ {data.Igv:0.00}</td>
+                    <td><b>S/ {data.Total:0.00}</b></td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+<div style='border:1px solid black; padding:8px; font-size:11px; margin-top:5px;'>
+    Esta es una representación impresa de la nota de crédito electrónica {data.Serie}-{data.Numero}.
+</div>
+";
+        }
+
         private string GenerarHtmlOrdenTrabajo(WorkOrderDetailDto data, List<VehicleBudgetDetailDto> data2)
         {
             var cabecera = GenerarCabeceraPresupuesto(data2[0], data);
@@ -2068,18 +2319,14 @@ body {{
                 .Where(i => i.Product != null)
                 .ToList();
 
-            bool tieneDescuento = repuestos.Any(i => i.Discount > 0);
-            int totalColumnas = tieneDescuento ? 7 : 6;
-
+            int totalColumnas = 7;
             int itemIndex = 1;
             string filas = "";
 
             foreach (var item in repuestos)
             {
                 var descripcion = GetDescripcion(item);
-                string celdaDescuento = tieneDescuento
-                    ? $"<td class='right'>{(item.Discount > 0 ? item.Discount.ToString("0.00") : "-")}</td>"
-                    : "";
+                decimal precioReal = (item.UnitPrice * item.Quantity) - item.Discount;
 
                 filas += $@"
         <tr>
@@ -2088,17 +2335,16 @@ body {{
             <td class='center'>UND</td>
             <td>{descripcion}</td>
             <td class='right'>{item.UnitPrice:0.00}</td>
-            {celdaDescuento}
-            <td class='right'>{item.TotalPrice:0.00}</td>
+            <td class='right'>{item.Discount:0.00}</td>
+            <td class='right'>{precioReal:0.00}</td>
         </tr>";
 
                 itemIndex++;
             }
 
-            decimal totalGeneral = repuestos.Sum(x => x.TotalPrice);
+            decimal totalGeneral = repuestos.Sum(x => (x.UnitPrice * x.Quantity) - x.Discount);
 
-            string colDescuentoHeader = tieneDescuento ? "<th>DSCTO</th>" : "";
-            string colspanTotal = tieneDescuento ? "6" : "5";
+            string colspanTotal = "6";
 
             return $@"
 <style>
@@ -2128,7 +2374,9 @@ body {{
 .repuestos-table td {{
     padding: 4px;
     border-bottom: 1px solid #cfcfcf;
+    letter-spacing: 0.4px;
 }}
+
 
 .center {{
     text-align: center;
@@ -2147,13 +2395,13 @@ body {{
 </tr>
 
 <tr class='repuestos-head'>
-    <th>ITEM</th>
-    <th>CANT</th>
-    <th>UND</th>
-    <th>DESCRIPCION</th>
-    <th>P.UNIT</th>
-    {colDescuentoHeader}
-    <th>SUB TOTAL</th>
+    <th style='width:5%'>ITEM</th>
+    <th style='width:7%'>CANT</th>
+    <th style='width:7%'>UND</th>
+    <th style='width:54%'>DESCRIPCION</th>
+    <th style='width:9%'>P.UNIT</th>
+    <th style='width:9%'>DSCTO</th>
+    <th style='width:9%'>SUB TOTAL</th>
 </tr>
 
 {filas}
@@ -2197,10 +2445,8 @@ body {{
                 .Where(i => i.Product != null && budgetItemIds.Contains(i.Id))
                 .ToList();
            
-            bool tieneDescuento = repuestos.Any(i => i.Discount > 0);
-            int totalColumnas = tieneDescuento ? 7 : 6;
-            string colDescuentoHeader = tieneDescuento ? "<th>DSCTO</th>" : "";
-            string colspanTotal = tieneDescuento ? "6" : "5";
+            int totalColumnas = 7;
+            string colspanTotal = "6";
 
             int itemIndex = 1;
             string filas = "";
@@ -2208,9 +2454,7 @@ body {{
             foreach (var item in repuestos)
             {
                 var descripcion = GetDescripcion(item);
-                string celdaDescuento = tieneDescuento
-                    ? $"<td class='right'>{(item.Discount > 0 ? item.Discount.ToString("0.00") : "-")}</td>"
-                    : "";
+                decimal precioReal = (item.UnitPrice * item.Quantity) - item.Discount;
 
                 filas += $@"
         <tr>
@@ -2219,15 +2463,15 @@ body {{
             <td class='center'>UND</td>
             <td>{descripcion}</td>
             <td class='right'>{item.UnitPrice:0.00}</td>
-            {celdaDescuento}
-            <td class='right'>{item.TotalPrice:0.00}</td>
+            <td class='right'>{item.Discount:0.00}</td>
+            <td class='right'>{precioReal:0.00}</td>
         </tr>";
 
                 itemIndex++;
             }
 
             // 🔥 TOTAL
-            decimal totalGeneral = repuestos.Sum(x => x.TotalPrice);
+            decimal totalGeneral = repuestos.Sum(x => (x.UnitPrice * x.Quantity) - x.Discount);
 
             return $@"
 <style>
@@ -2257,7 +2501,9 @@ body {{
 .repuestos-table td {{
     padding: 4px;
     border-bottom: 1px solid #cfcfcf;
+    letter-spacing: 0.4px;
 }}
+
 
 .center {{
     text-align: center;
@@ -2276,13 +2522,13 @@ body {{
 </tr>
 
 <tr class='repuestos-head'>
-    <th>ITEM</th>
-    <th>CANT</th>
-    <th>UND</th>
-    <th>DESCRIPCION</th>
-    <th>P.UNIT</th>
-    {colDescuentoHeader}
-    <th>SUB TOTAL</th>
+    <th style='width:5%'>ITEM</th>
+    <th style='width:7%'>CANT</th>
+    <th style='width:7%'>UND</th>
+    <th style='width:54%'>DESCRIPCION</th>
+    <th style='width:9%'>P.UNIT</th>
+    <th style='width:9%'>DSCTO</th>
+    <th style='width:9%'>SUB TOTAL</th>
 </tr>
 
 {filas}
@@ -2315,9 +2561,9 @@ body {{
                 .Where(i => i.Service != null && i.Service.IsDiscount == true)
                 .ToList();
 
-            bool tieneDescuento = independientes.Any(i => i.Discount > 0);
-            int totalColumnas = tieneDescuento ? 7 : 6;
-            string colspanTotal = tieneDescuento ? "6" : "5";
+            bool tieneDescuento = true;
+            int totalColumnas = 7;
+            string colspanTotal = "6";
 
             int itemIndex = 1;
             string filas = "";
@@ -2328,13 +2574,14 @@ body {{
 
                 string nombreGrupo = package?.Name ?? "SERVICIO";
                 decimal totalGrupo = grupo.Sum(x => x.TotalPrice);
+                decimal cantGrupo = grupo.Sum(x => x.Quantity);
 
                 string celdasDsctoGrupo = tieneDescuento ? "<td></td>" : "";
 
                 filas += $@"
                     <tr>
                         <td class='center'>{itemIndex}</td>
-                        <td class='center'>1</td>
+                        <td class='center'>{cantGrupo}</td>
                         <td class='center'>UND</td>
                         <td class='servicio-main'>{nombreGrupo}</td>
                         <td></td>
@@ -2345,16 +2592,19 @@ body {{
                 foreach (var item in grupo)
                 {
                     var descripcion = GetDescripcion(item);
-                    string celdaDetalleDscto = tieneDescuento ? "<td></td>" : "";
+                    string celdaDetalleDscto = tieneDescuento
+                        ? $"<td class='right'>{item.Discount:0.00}</td>"
+                        : "";
+                    decimal precioRealItem = (item.UnitPrice * item.Quantity) - item.Discount;
                     filas += $@"
                     <tr>
                         <td></td>
-                        <td></td>
+                        <td class='center'>{item.Quantity}</td>
                         <td></td>
                         <td class='servicio-detalle'>{descripcion}</td>
-                        <td></td>
+                        <td class='right'>{item.UnitPrice:0.00}</td>
                         {celdaDetalleDscto}
-                        <td></td>
+                        <td class='right'>{precioRealItem:0.00}</td>
                     </tr>";
                 }
 
@@ -2432,7 +2682,9 @@ body {{
             .servicios-table td {{
                 padding: 4px;
                 border-bottom: 1px solid #dcdcdc;
+                letter-spacing: 0.4px;
             }}
+
 
             .center {{ text-align: center; }}
             .right {{ text-align: right; }}
@@ -2451,13 +2703,13 @@ body {{
             </tr>
 
             <tr class='servicios-head'>
-                <th>ITEM</th>
-                <th>CANT</th>
-                <th>UND</th>
-                <th>DESCRIPCION</th>
-                <th>P.UNIT</th>
-                {colDescuentoHeader}
-                <th>SUB TOTAL</th>
+                <th style='width:5%'>ITEM</th>
+                <th style='width:7%'>CANT</th>
+                <th style='width:7%'>UND</th>
+                <th style='width:54%'>DESCRIPCION</th>
+                <th style='width:9%'>P.UNIT</th>
+                <th style='width:9%'>DSCTO</th>
+                <th style='width:9%'>SUB TOTAL</th>
             </tr>
 
             {filas}
@@ -2521,9 +2773,8 @@ body {{
                 .Where(i => i.Item.ServicePackageId == null)
                 .ToList();
 
-            bool tieneDescuento = serviciosNormales.Any(x => x.Item.Discount > 0);
-            string colDescuentoHeader = tieneDescuento ? "<th>DSCTO</th>" : "";
-            string colspanTotal = tieneDescuento ? "6" : "5";
+            bool tieneDescuento = true;
+            string colspanTotal = "6";
 
             int itemIndex = 1;
             string filas = "";
@@ -2535,33 +2786,33 @@ body {{
 
                 string nombreGrupo = package?.Name ?? "SERVICIO";
                 decimal totalGrupo = grupo.Sum(x => x.Total);
-                string celdaDsctoGrupo = tieneDescuento ? "<td></td>" : "";
+                decimal cantGrupo = grupo.Sum(x => x.Quantity);
 
                 filas += $@"
 <tr>
     <td class='center'>{itemIndex}</td>
-    <td class='center'>1</td>
+    <td class='center'>{cantGrupo}</td>
     <td class='center'>UND</td>
     <td class='servicio-main'>{nombreGrupo}</td>
     <td></td>
-    {celdaDsctoGrupo}
+    <td></td>
     <td class='right'>{totalGrupo:0.00}</td>
 </tr>";
 
                 foreach (var item in grupo)
                 {
                     var descripcion = GetDescripcion(item.Item);
-                    string celdaDsctoDetalle = tieneDescuento ? "<td></td>" : "";
+                    decimal precioRealItem = (item.Item.UnitPrice * item.Quantity) - item.Item.Discount;
 
                     filas += $@"
 <tr>
     <td></td>
-    <td></td>
+    <td class='center'>{item.Quantity}</td>
     <td></td>
     <td class='servicio-detalle'>{descripcion}</td>
-    <td></td>
-    {celdaDsctoDetalle}
-    <td></td>
+    <td class='right'>{item.Item.UnitPrice:0.00}</td>
+    <td class='right'>{item.Item.Discount:0.00}</td>
+    <td class='right'>{precioRealItem:0.00}</td>
 </tr>";
                 }
 
@@ -2572,9 +2823,6 @@ body {{
             foreach (var item in independientes)
             {
                 var descripcion = GetDescripcion(item.Item);
-                string celdaDscto = tieneDescuento
-                    ? $"<td class='right'>{(item.Item.Discount > 0 ? item.Item.Discount.ToString("0.00") : "-")}</td>"
-                    : "";
 
                 filas += $@"
 <tr>
@@ -2583,7 +2831,7 @@ body {{
     <td class='center'>UND</td>
     <td class='servicio-main'>{descripcion}</td>
     <td class='right'>{item.Item.UnitPrice:0.00}</td>
-    {celdaDscto}
+    <td class='right'>{item.Item.Discount:0.00}</td>
     <td class='right'>{item.Total:0.00}</td>
 </tr>";
 
@@ -2620,15 +2868,18 @@ string filasDescuento = "";
 
                 foreach (var o in otros)
                 {
-                    subtotalOtros += o.Total;
+                    decimal precioRealOtro = (o.Item.UnitPrice * o.Quantity) - o.Item.Discount;
+                    subtotalOtros += precioRealOtro;
 
                     filasOtros += $@"
 <tr>
     <td class='center'>{itemOtros}</td>
     <td class='center'>{o.Quantity}</td>
     <td class='center'>UND</td>
-    <td colspan='2'>{o.Item.Service?.Name}</td>
-    <td class='right'>{o.Total:0.00}</td>
+    <td>{o.Item.Service?.Name}</td>
+    <td class='right'>{o.Item.UnitPrice:0.00}</td>
+    <td class='right'>{o.Item.Discount:0.00}</td>
+    <td class='right'>{precioRealOtro:0.00}</td>
 </tr>";
 
                     itemOtros++;
@@ -2640,21 +2891,23 @@ string filasDescuento = "";
 <table class='servicios-table'>
 
 <tr>
-    <td colspan='6' class='servicios-title'>OTROS</td>
+    <td colspan='7' class='servicios-title'>OTROS</td>
 </tr>
 
 <tr class='servicios-head'>
-    <th>ITEM</th>
-    <th>CANT</th>
-    <th>UND</th>
-    <th colspan='2'>DESCRIPCION</th>
-    <th>SUB TOTAL</th>
+    <th style='width:5%'>ITEM</th>
+    <th style='width:7%'>CANT</th>
+    <th style='width:7%'>UND</th>
+    <th style='width:54%'>DESCRIPCION</th>
+    <th style='width:9%'>P.UNIT</th>
+    <th style='width:9%'>DSCTO</th>
+    <th style='width:9%'>SUB TOTAL</th>
 </tr>
 
 {filasOtros}
 
 <tr>
-    <td colspan='5' class='right'><b>Sub total</b></td>
+    <td colspan='6' class='right'><b>Sub total</b></td>
     <td class='right'><b>{subtotalOtros:0.00}</b></td>
 </tr>
 
@@ -2704,17 +2957,17 @@ string filasDescuento = "";
 <table class='servicios-table'>
 
 <tr>
-    <td colspan='{(tieneDescuento ? 7 : 6)}' class='servicios-title'>SERVICIOS</td>
+    <td colspan='7' class='servicios-title'>SERVICIOS</td>
 </tr>
 
 <tr class='servicios-head'>
-    <th>ITEM</th>
-    <th>CANT</th>
-    <th>UND</th>
-    <th>DESCRIPCION</th>
-    <th>P.UNIT</th>
-    {colDescuentoHeader}
-    <th>SUB TOTAL</th>
+    <th style='width:5%'>ITEM</th>
+    <th style='width:7%'>CANT</th>
+    <th style='width:7%'>UND</th>
+    <th style='width:54%'>DESCRIPCION</th>
+    <th style='width:9%'>P.UNIT</th>
+    <th style='width:9%'>DSCTO</th>
+    <th style='width:9%'>SUB TOTAL</th>
 </tr>
 
 {filas}
@@ -2767,7 +3020,9 @@ string filasDescuento = "";
 .otros-table td {
     padding: 4px;
     border-bottom: 1px solid #dcdcdc;
+    letter-spacing: 0.4px;
 }
+
 .center { text-align: center; }
 .right { text-align: right; }
 </style>
@@ -2775,15 +3030,17 @@ string filasDescuento = "";
 <table class='otros-table'>
 
 <tr>
-    <td colspan='6' class='otros-title'>OTROS</td>
+    <td colspan='7' class='otros-title'>OTROS</td>
 </tr>
 
 <tr class='otros-head'>
-    <th>ITEM</th>
-    <th>CANT</th>
-    <th>UND</th>
-    <th colspan='2'>DESCRIPCION</th>
-    <th>SUB TOTAL</th>
+    <th style='width:5%'>ITEM</th>
+    <th style='width:7%'>CANT</th>
+    <th style='width:7%'>UND</th>
+    <th style='width:54%'>DESCRIPCION</th>
+    <th style='width:9%'>P.UNIT</th>
+    <th style='width:9%'>DSCTO</th>
+    <th style='width:9%'>SUB TOTAL</th>
 </tr>
 ");
 
@@ -2792,15 +3049,18 @@ string filasDescuento = "";
 
             foreach (var o in otros)
             {
-                subtotal += o.TotalPrice;
+                decimal precioReal = (o.UnitPrice * o.Quantity) - o.Discount;
+                subtotal += precioReal;
 
                 sb.Append($@"
 <tr>
     <td class='center'>{item}</td>
     <td class='center'>{o.Quantity}</td>
     <td class='center'>UND</td>
-    <td colspan='2'>{o.Service?.Name}</td>
-    <td class='right'>{o.TotalPrice:0.00}</td>
+    <td>{o.Service?.Name}</td>
+    <td class='right'>{o.UnitPrice:0.00}</td>
+    <td class='right'>{o.Discount:0.00}</td>
+    <td class='right'>{precioReal:0.00}</td>
 </tr>
 ");
                 item++;
@@ -2808,7 +3068,7 @@ string filasDescuento = "";
 
             sb.Append($@"
 <tr>
-    <td colspan='5' class='right'><b>Sub total</b></td>
+    <td colspan='6' class='right'><b>Sub total</b></td>
     <td class='right'><b>{subtotal:0.00}</b></td>
 </tr>
 
