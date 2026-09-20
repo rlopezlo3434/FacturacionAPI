@@ -19,7 +19,6 @@ namespace FacturacionAPI.Services
         {
             _context = context;
             _httpClient = httpClient;
-            _httpClient.Timeout = TimeSpan.FromSeconds(30);
         }
 
         /// <summary>

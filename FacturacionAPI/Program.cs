@@ -41,7 +41,12 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 {
     options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
-builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
+
+builder.Services.AddHttpClient<FacturacionAPI.Services.FacturacionService>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(30));
+builder.Services.AddHttpClient<FacturacionAPI.Services.NotaCreditoService>()
+    .SetHandlerLifetime(TimeSpan.FromMinutes(30));
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

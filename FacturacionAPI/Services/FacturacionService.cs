@@ -27,7 +27,6 @@ namespace FacturacionAPI.Services
         {
             _context = context;
             _httpClient = httpClient;
-            _httpClient.Timeout = TimeSpan.FromSeconds(30);
             _cajaService = cajaService;
         }
         public async Task<IEnumerable<ItemsDto>> GetItemsByEstablishment(int establishmentId)

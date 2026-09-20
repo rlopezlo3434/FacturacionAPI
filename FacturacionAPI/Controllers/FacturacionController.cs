@@ -2,6 +2,7 @@
 using FacturacionAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text.Json;
@@ -20,12 +21,13 @@ namespace FacturacionAPI.Controllers
     {
         private readonly HttpClient _httpClient;
         private readonly FacturacionService _facturacionService;
-        //private readonly string _nubefactUrl = "https://api.nubefact.com/api/v1/9a1cbb4b-c878-48d6-8aa5-5996ac27408b";
-        //private readonly string _token = "cf09b4ee1e3a42a4a8ef9a83d6a87d8346d94e2386ae41cb81cd3c6e748ad142";
-        public FacturacionController(FacturacionService facturacionService, HttpClient httpClient)
+        private readonly IMemoryCache _cache;
+
+        public FacturacionController(FacturacionService facturacionService, HttpClient httpClient, IMemoryCache cache)
         {
             _facturacionService = facturacionService;
-            _httpClient = httpClient;   
+            _httpClient = httpClient;
+            _cache = cache;
         }
 
         [Authorize]
@@ -103,15 +105,19 @@ namespace FacturacionAPI.Controllers
             }
         }
 
-        [Authorize]
+        //[Authorize]
         [HttpGet("descargar-pdf")]
         public async Task<IActionResult> DescargarPdf(string url)
         {
-            using var http = new HttpClient();
-
-            var data = await http.GetByteArrayAsync(url);
-
-            return File(data, "application/pdf", "comprobante.pdf");
+            try
+            {
+                var bytes = await _httpClient.GetByteArrayAsync(url);
+                return File(bytes, "application/pdf", "comprobante.pdf");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al descargar el PDF", detalle = ex.Message });
+            }
         }
 
         [Authorize]
@@ -140,14 +146,26 @@ namespace FacturacionAPI.Controllers
         [HttpGet("pdf/print")]
         public async Task<IActionResult> ObtenerPdf([FromQuery] string url)
         {
-            using var http = new HttpClient();
-            var response = await http.GetAsync(url);
+            if (string.IsNullOrWhiteSpace(url))
+                return BadRequest("URL requerida.");
 
-            if (!response.IsSuccessStatusCode)
-                return BadRequest("No se pudo descargar el PDF externo.");
+            if (_cache.TryGetValue(url, out byte[]? cached) && cached != null)
+                return File(cached, "application/pdf");
 
-            var pdfBytes = await response.Content.ReadAsByteArrayAsync();
-            return File(pdfBytes, "application/pdf");
+            try
+            {
+                var response = await _httpClient.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                    return BadRequest("No se pudo descargar el PDF.");
+
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                _cache.Set(url, bytes, TimeSpan.FromHours(2));
+                return File(bytes, "application/pdf");
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Error al obtener el PDF", detalle = ex.Message });
+            }
         }
 
         [Authorize]
