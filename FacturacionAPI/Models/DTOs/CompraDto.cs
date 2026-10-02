@@ -15,6 +15,7 @@ namespace FacturacionAPI.Models.DTOs
         public string? Correlativo { get; set; }
         public DateTime FechaDocumento { get; set; }
         public string Moneda { get; set; } = "SOLES";
+        public bool ConIgv { get; set; } = true;
         public List<CompraDetalleCreateDto> Detalles { get; set; } = new();
     }
 
@@ -43,6 +44,7 @@ namespace FacturacionAPI.Models.DTOs
         public decimal Igv { get; set; }
         public decimal Total { get; set; }
         public string Moneda { get; set; } = "";
+        public bool ConIgv { get; set; }
         public List<CompraDetalleResponseDto> Detalles { get; set; } = new();
     }
 }

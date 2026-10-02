@@ -87,6 +87,34 @@
         public string Names { get; set; }
     }
 
+    public class WorkOrderReporteDto
+    {
+        public string Code { get; set; } = null!;
+        public int Correlativo { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int Mode { get; set; }
+        public bool IsCompleted { get; set; }
+        public string ClienteNombre { get; set; } = null!;
+        public string Placa { get; set; } = null!;
+        public string Marca { get; set; } = null!;
+        public string Modelo { get; set; } = null!;
+        public string Moneda { get; set; } = "PEN";
+        public decimal Total { get; set; }
+        public List<WorkOrderReporteItemDto> Items { get; set; } = new();
+    }
+
+    public class WorkOrderReporteItemDto
+    {
+        public string Tipo { get; set; } = null!;
+        public string Descripcion { get; set; } = null!;
+        public decimal Cantidad { get; set; }
+        public decimal PrecioUnitario { get; set; }
+        public decimal Descuento { get; set; }
+        public decimal Subtotal { get; set; }
+        public bool IsCompleted { get; set; }
+        public string? Observaciones { get; set; }
+    }
+
     public class ProveedorMiniDto
     {
         public int Id { get; set; }

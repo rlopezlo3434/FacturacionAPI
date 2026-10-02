@@ -22,9 +22,15 @@
         public decimal Subtotal { get; set; }
         public decimal Igv { get; set; }
         public decimal Total { get; set; }
+        public string Moneda { get; set; } = "PEN";
         public string? Cond_venta { get; set; }
 
         public string? Observaciones { get; set; }
+
+        public string? DocumentoRefSerie { get; set; }
+        public int? DocumentoRefNumero { get; set; }
+        public string? DocumentoRefTipo { get; set; }
+        public DateTime? DocumentoRefFecha { get; set; }
 
         public List<VentaDetalleItemDto?> Detalles { get; set; }
         public List<Models.Entities.VentaCuota> Cuotas { get; set; }

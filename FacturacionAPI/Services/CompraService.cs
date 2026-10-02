@@ -1,6 +1,7 @@
 using FacturacionAPI.Data;
 using FacturacionAPI.Models.DTOs;
 using FacturacionAPI.Models.Entities;
+using FacturacionAPI.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace FacturacionAPI.Services
@@ -44,10 +45,24 @@ namespace FacturacionAPI.Services
                 PrecioCompra = d.PrecioCompra
             }).ToList();
 
-            // PrecioCompra ya incluye IGV → dividir para obtener subtotal e IGV
-            decimal total = detalles.Sum(d => d.PrecioCompra * d.Cantidad);
-            //decimal subtotal = Math.Round(total / 1.18m, 2);
-            //decimal igv = Math.Round(total - subtotal, 2);
+            // El precio de costo es el que determina lo que realmente se paga al proveedor
+            decimal montoIngresado = detalles.Sum(d => d.PrecioCosto * d.Cantidad);
+
+            decimal subtotal, igv, total;
+            if (dto.ConIgv)
+            {
+                // Los precios ingresados ya incluyen IGV → se descompone para obtener subtotal e IGV
+                total = montoIngresado;
+                subtotal = Math.Round(total / 1.18m, 2);
+                igv = Math.Round(total - subtotal, 2);
+            }
+            else
+            {
+                // Los precios ingresados son sin IGV → se le agrega el IGV para obtener el total
+                subtotal = montoIngresado;
+                igv = Math.Round(subtotal * 0.18m, 2);
+                total = Math.Round(subtotal + igv, 2);
+            }
 
             var compra = new Compra
             {
@@ -57,28 +72,58 @@ namespace FacturacionAPI.Services
                 FechaDocumento = dto.FechaDocumento,
                 FechaCreacion = DateTime.UtcNow,
                 Moneda = dto.Moneda,
-                //Subtotal = subtotal,
-                //Igv = igv,
+                ConIgv = dto.ConIgv,
+                Subtotal = subtotal,
+                Igv = igv,
                 Total = total,
                 Detalles = detalles
             };
 
             _context.Compras.Add(compra);
 
-            if (dto.Moneda.Equals("DOLARES", StringComparison.OrdinalIgnoreCase) ||
-                dto.Moneda.Equals("USD", StringComparison.OrdinalIgnoreCase))
-            {
-                var productIds = dto.Detalles.Select(d => d.ProductId).Distinct().ToList();
-                var products = await _context.Products
-                    .Where(p => productIds.Contains(p.Id))
-                    .ToListAsync();
+            // ✅ Actualiza costo, stock y kardex (entrada) de cada producto comprado
+            var productIds = dto.Detalles.Select(d => d.ProductId).Distinct().ToList();
+            var products = await _context.Products
+                .Where(p => productIds.Contains(p.Id))
+                .ToListAsync();
 
-                foreach (var detalle in dto.Detalles)
+            bool esDolar = dto.Moneda.Equals("DOLARES", StringComparison.OrdinalIgnoreCase) ||
+                           dto.Moneda.Equals("USD", StringComparison.OrdinalIgnoreCase);
+
+            int.TryParse(dto.Correlativo, out var documentoNumero);
+
+            foreach (var detalle in dto.Detalles)
+            {
+                var product = products.FirstOrDefault(p => p.Id == detalle.ProductId);
+                if (product == null) continue;
+
+                // PrecioCosto: lo que se paga al proveedor. PrecioCompra: precio de venta a actualizar.
+                if (esDolar)
+                    product.CostDolar = detalle.PrecioCosto;
+                else
+                    product.Cost = detalle.PrecioCosto;
+
+                if (detalle.PrecioCompra > 0)
                 {
-                    var product = products.FirstOrDefault(p => p.Id == detalle.ProductId);
-                    if (product != null)
-                        product.CostDolar = detalle.PrecioCompra;
+                    if (esDolar)
+                        product.PriceDolar = detalle.PrecioCompra;
+                    else
+                        product.Price = detalle.PrecioCompra;
                 }
+
+                product.Quantity += detalle.Cantidad;
+
+                _context.ProductStockMovements.Add(new ProductStockMovement
+                {
+                    ProductId = product.Id,
+                    MovementType = MovementType.Entrada,
+                    Quantity = detalle.Cantidad,
+                    DocumentoTipo = "COMPRA",
+                    DocumentoSerie = dto.Serie ?? "",
+                    DocumentoNumero = documentoNumero,
+                    Compra = compra,
+                    Notes = $"Entrada por compra {dto.Serie}-{dto.Correlativo}"
+                });
             }
 
             await _context.SaveChangesAsync();
@@ -114,6 +159,7 @@ namespace FacturacionAPI.Services
             Igv = c.Igv,
             Total = c.Total,
             Moneda = c.Moneda,
+            ConIgv = c.ConIgv,
             Detalles = c.Detalles?.Select(d => new CompraDetalleResponseDto
             {
                 Id = d.Id,

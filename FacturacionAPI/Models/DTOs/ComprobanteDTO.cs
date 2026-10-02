@@ -49,6 +49,7 @@ namespace FacturacionAPI.Models.DTOs
         public decimal subtotal { get; set; }
         public decimal igv { get; set; }
         public decimal total { get; set; }
+        public string? moneda { get; set; }
 
 
     }

@@ -53,10 +53,11 @@ namespace FacturacionAPI.Controllers
         public async Task<IActionResult> Update(
             int id,
             [FromForm] CreateVehicleIntakeDto dto,
-            List<IFormFile>? images
+            [FromForm] List<IFormFile>? images,
+            List<IFormFile>? diagrams
         )
         {
-            var result = await _service.UpdateVehicleIntakeAsync(id, dto, images);
+            var result = await _service.UpdateVehicleIntakeAsync(id, dto, images, diagrams);
 
             if (!result.Success)
                 return BadRequest(new { success = false, message = result.Message });

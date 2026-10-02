@@ -48,6 +48,41 @@ namespace FacturacionAPI.Services
                 .ToListAsync();
         }
 
+        // ✅ KARDEX: movimientos de stock (salidas por ventas, entradas por compras)
+        public async Task<List<ProductKardexMovementDto>> GetKardexSalidasAsync(int? productId = null)
+        {
+            var query = _context.ProductStockMovements
+                .Include(m => m.Product)
+                .Include(m => m.Venta)
+                .Include(m => m.Compra).ThenInclude(c => c!.Proveedor)
+                .AsQueryable();
+
+            if (productId.HasValue)
+                query = query.Where(m => m.ProductId == productId.Value);
+
+            return await query
+                .OrderByDescending(m => m.CreatedAt)
+                .Select(m => new ProductKardexMovementDto
+                {
+                    Id = m.Id,
+                    ProductId = m.ProductId,
+                    ProductCode = m.Product.Code,
+                    ProductName = m.Product.Name,
+                    MovementType = m.MovementType.ToString(),
+                    Quantity = m.Quantity,
+                    DocumentoTipo = m.DocumentoTipo,
+                    DocumentoSerie = m.DocumentoSerie,
+                    DocumentoNumero = m.DocumentoNumero,
+                    VentaId = m.VentaId,
+                    ClienteNombre = m.Venta != null ? m.Venta.ClienteNombre : null,
+                    CompraId = m.CompraId,
+                    ProveedorNombre = m.Compra != null ? m.Compra.Proveedor.RazonSocial : null,
+                    Notes = m.Notes,
+                    CreatedAt = m.CreatedAt
+                })
+                .ToListAsync();
+        }
+
         public async Task<(bool Success, string Message)> CreateProductAsync(ProductCreateUpdateDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Name))

@@ -34,7 +34,13 @@ namespace FacturacionAPI.Controllers
             if (!result.Success)
                 return BadRequest(new { success = false, message = result.Message });
 
-            return Ok(new { success = true, message = result.Message, pendienteId = result.PendienteId });
+            return Ok(new
+            {
+                success = true,
+                message = result.Message,
+                pendienteId = result.PendienteId,
+                ncVentaId = result.NcVentaId
+            });
         }
 
         /// <summary>

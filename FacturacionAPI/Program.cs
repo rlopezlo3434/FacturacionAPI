@@ -84,13 +84,14 @@ builder.Services.AddScoped<PdfService>();
 builder.Services.AddScoped<ProveedorService>();
 builder.Services.AddScoped<CompraService>();
 //builder.Services.AddHostedService<AnulacionNubefactJob>();
+builder.Services.AddHostedService<EnvioPendientesDailyJob>();
 
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
 
-//app.UseHttpsRedirection();
+app.UseHttpsRedirection();
 
 app.UseCors("AllowAll");
 

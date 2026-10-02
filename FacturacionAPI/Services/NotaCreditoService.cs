@@ -10,41 +10,41 @@ namespace FacturacionAPI.Services
     {
         private readonly SistemaVentasDbContext _context;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly FacturacionService _facturacionService;
 
-        public NotaCreditoService(SistemaVentasDbContext context, IHttpClientFactory httpClientFactory)
+        public NotaCreditoService(SistemaVentasDbContext context, IHttpClientFactory httpClientFactory, FacturacionService facturacionService)
         {
             _context = context;
             _httpClientFactory = httpClientFactory;
+            _facturacionService = facturacionService;
         }
 
         /// <summary>
-        /// Encola una Nota de Crédito para enviarla a Nubefact.
-        /// - Boleta: FechaProgramada = mañana (Nubefact procesa boletas al día siguiente)
-        /// - Factura: FechaProgramada = ahora (se puede enviar inmediatamente)
+        /// Genera la Nota de Crédito: crea la Venta de inmediato (visible y con PDF propio
+        /// disponible al instante, sin esperar la confirmación real de SUNAT) y decide cómo
+        /// se envía a Nubefact según el tipo de documento original:
+        /// - Factura: se envía a Nubefact en el acto (no espera el job de las 3am).
+        /// - Boleta: queda encolada y se envía al día siguiente (SUNAT la recibe de noche),
+        ///   procesada por el job diario de las 3am.
+        /// En ambos casos el documento ya es visible para el usuario desde el momento en que
+        /// se llama este método.
         /// </summary>
-        public async Task<(bool Success, string Message, int PendienteId)>
+        public async Task<(bool Success, string Message, int PendienteId, int? NcVentaId)>
             EncolarNotaCreditoAsync(int ventaOriginalId, string? reemplazadoPor = null)
         {
             var venta = await _context.Ventas
+                .Include(v => v.Detalles)
                 .Include(v => v.Establishment)
                 .FirstOrDefaultAsync(v => v.Id == ventaOriginalId);
 
             if (venta == null)
-                return (false, "Venta original no encontrada.", 0);
+                return (false, "Venta original no encontrada.", 0, null);
 
             if (venta.IsAnnulled)
-                return (false, "La venta ya fue anulada.", 0);
+                return (false, "La venta ya fue anulada.", 0, null);
 
             if (venta.EstablishmentId == null)
-                return (false, "La venta no tiene establecimiento.", 0);
-
-            bool esFactura = venta.TipoComprobante.ToUpper().Contains("FACTURA");
-
-            // Boleta: programar para mañana al mediodía (SUNAT la recibe de noche)
-            // Factura: puede enviarse de inmediato
-            var fechaProgramada = esFactura
-                ? DateTime.Now
-                : DateTime.Today.AddDays(1).AddHours(10);
+                return (false, "La venta no tiene establecimiento.", 0, null);
 
             // Verificar que no exista ya una NC pendiente o enviada para esta venta
             var yaExiste = await _context.DocumentosPendientesEnvio
@@ -54,7 +54,68 @@ namespace FacturacionAPI.Services
                     d.Estado != "ERROR");
 
             if (yaExiste)
-                return (false, "Ya existe una Nota de Crédito pendiente o enviada para esta venta.", 0);
+                return (false, "Ya existe una Nota de Crédito pendiente o enviada para esta venta.", 0, null);
+
+            bool esFactura = venta.TipoComprobante.ToUpper().Contains("FACTURA");
+            var establishment = venta.Establishment;
+
+            var serieNC = esFactura ? establishment.SerieNotaCredito2 : establishment.SerieNotaCredito;
+            if (string.IsNullOrEmpty(serieNC))
+                return (false, $"Serie NC no configurada para {(esFactura ? "Factura" : "Boleta")}.", 0, null);
+
+            var ultimoNumero = await _context.Ventas
+                .Where(v => v.Serie == serieNC && v.EstablishmentId == establishment.Id)
+                .MaxAsync(v => (int?)v.Numero) ?? 0;
+            int nuevoNumero = ultimoNumero + 1;
+
+            string motivo = string.IsNullOrWhiteSpace(reemplazadoPor)
+                ? "ANULACION DE OPERACION"
+                : $"SE REMPLAZO POR {(reemplazadoPor.StartsWith("F", StringComparison.OrdinalIgnoreCase) ? "FACTURA" : "BOLETA")} {reemplazadoPor.ToUpper()}";
+
+            // 🔥 La NC se crea (y queda visible) de inmediato, sea cual sea el camino de envío.
+            var ncVenta = new Venta
+            {
+                TipoComprobante = "NOTA DE CREDITO",
+                Serie = serieNC,
+                Numero = nuevoNumero,
+                ClienteDocumento = venta.ClienteDocumento,
+                ClienteNombre = venta.ClienteNombre,
+                Direccion = venta.Direccion,
+                TotalGravada = venta.TotalGravada,
+                TotalIgv = venta.TotalIgv,
+                Total = venta.Total,
+                Moneda = venta.Moneda,
+                Marca = venta.Marca,
+                Modelo = venta.Modelo,
+                Anio = venta.Anio,
+                Placa = venta.Placa,
+                FechaEmision = DateTime.Now,
+                Observaciones = motivo,
+                DocumentoRefSerie = venta.Serie,
+                DocumentoRefNumero = venta.Numero,
+                DocumentoRefTipo = venta.TipoComprobante,
+                DocumentoRefFecha = venta.FechaEmision,
+                EstablishmentId = establishment.Id,
+                Cond_venta = "CONTADO",
+                Detalles = venta.Detalles.Select(d => new VentaDetalle
+                {
+                    Codigo = d.Codigo,
+                    Descripcion = d.Descripcion,
+                    Cantidad = d.Cantidad,
+                    ValorUnitario = d.ValorUnitario,
+                    PrecioUnitario = d.PrecioUnitario,
+                    Subtotal = d.Subtotal,
+                    Igv = d.Igv,
+                    Total = d.Total
+                }).ToList()
+            };
+
+            _context.Ventas.Add(ncVenta);
+
+            // Boleta: se envía mañana (SUNAT la recibe de noche). Factura: intento inmediato.
+            var fechaProgramada = esFactura
+                ? DateTime.Now
+                : DateTime.Today.AddDays(1).AddHours(10);
 
             var pendiente = new DocumentoPendienteEnvio
             {
@@ -63,22 +124,44 @@ namespace FacturacionAPI.Services
                 ReemplazadoPor = reemplazadoPor,
                 FechaProgramada = fechaProgramada,
                 Estado = "PENDIENTE",
-                EstablishmentId = venta.EstablishmentId.Value,
+                EstablishmentId = establishment.Id,
                 CreatedAt = DateTime.Now
             };
 
             _context.DocumentosPendientesEnvio.Add(pendiente);
 
-            // Marcar la venta como anulada desde ya
+            // Marcar la venta original como anulada desde ya
             venta.IsAnnulled = true;
 
             await _context.SaveChangesAsync();
 
-            string cuando = esFactura
-                ? "inmediatamente"
-                : $"mañana {fechaProgramada:dd/MM/yyyy HH:mm}";
+            // Vincular el pendiente con la NC recién creada, para que el envío (inmediato o
+            // vía job) actualice esta misma Venta en vez de crear una nueva.
+            pendiente.NcVentaId = ncVenta.Id;
+            await _context.SaveChangesAsync();
 
-            return (true, $"NC encolada correctamente. Se enviará a Nubefact {cuando}.", pendiente.Id);
+            if (esFactura)
+            {
+                var (ok, error, _) = await EnviarNotaCreditoANubefactAsync(pendiente);
+
+                pendiente.Intentos++;
+                if (ok)
+                {
+                    pendiente.Estado = "ENVIADO";
+                    pendiente.EnviadoAt = DateTime.Now;
+                }
+                else
+                {
+                    pendiente.Estado = pendiente.Intentos >= 3 ? "ERROR" : "PENDIENTE";
+                    pendiente.MensajeError = error;
+                }
+                await _context.SaveChangesAsync();
+            }
+
+            return (true,
+                $"Nota de Crédito {ncVenta.Serie}-{ncVenta.Numero} generada correctamente.",
+                pendiente.Id,
+                ncVenta.Id);
         }
 
         /// <summary>
@@ -187,18 +270,34 @@ namespace FacturacionAPI.Services
             var establishment = ventaOriginal.Establishment;
             bool esFactura = ventaOriginal.TipoComprobante.ToUpper().Contains("FACTURA");
 
-            var serieNC = esFactura
-                ? establishment.SerieNotaCredito2
-                : establishment.SerieNotaCredito;
+            // La NC ya fue creada (y es visible) desde que se encoló. Reutilizamos su
+            // serie/número reservados en vez de recalcularlos, para no duplicar el comprobante.
+            Venta? ncVentaExistente = pendiente.NcVentaId.HasValue
+                ? await _context.Ventas.FirstOrDefaultAsync(v => v.Id == pendiente.NcVentaId.Value)
+                : null;
 
-            if (string.IsNullOrEmpty(serieNC))
-                return (false, $"Serie NC no configurada para {(esFactura ? "Factura" : "Boleta")}.", null);
+            string serieNC;
+            int nuevoNumero;
 
-            var ultimoNumero = await _context.Ventas
-                .Where(v => v.Serie == serieNC && v.EstablishmentId == establishment.Id)
-                .MaxAsync(v => (int?)v.Numero) ?? 0;
+            if (ncVentaExistente != null)
+            {
+                serieNC = ncVentaExistente.Serie;
+                nuevoNumero = ncVentaExistente.Numero;
+            }
+            else
+            {
+                // Compatibilidad con pendientes encolados antes de este cambio (sin NC pre-creada)
+                serieNC = esFactura ? establishment.SerieNotaCredito2 : establishment.SerieNotaCredito;
 
-            int nuevoNumero = ultimoNumero + 1;
+                if (string.IsNullOrEmpty(serieNC))
+                    return (false, $"Serie NC no configurada para {(esFactura ? "Factura" : "Boleta")}.", null);
+
+                var ultimoNumero = await _context.Ventas
+                    .Where(v => v.Serie == serieNC && v.EstablishmentId == establishment.Id)
+                    .MaxAsync(v => (int?)v.Numero) ?? 0;
+
+                nuevoNumero = ultimoNumero + 1;
+            }
 
             string reemplazadoPor = pendiente.ReemplazadoPor ?? "";
             string motivo = string.IsNullOrWhiteSpace(reemplazadoPor)
@@ -234,6 +333,10 @@ namespace FacturacionAPI.Services
                                : ventaOriginal.ClienteDocumento?.Length == 8  ? 1
                                : 0;
 
+            decimal? tipoCambio = ventaOriginal.Moneda == "USD"
+                ? await _facturacionService.GetTipoCambioSunatAsync()
+                : (decimal?)null;
+
             var payload = new
             {
                 operacion = "generar_comprobante",
@@ -259,13 +362,14 @@ namespace FacturacionAPI.Services
                 cancelado = true,
                 enviar_automaticamente_a_la_sunat = true,
                 enviar_automaticamente_al_cliente_por_correo = false,
-                moneda = 1,                       // 1 = Soles
+                moneda = ventaOriginal.Moneda == "USD" ? 2 : 1, // 1 = Soles, 2 = Dólares Americanos (Nubefact)
+                tipo_de_cambio = tipoCambio,
                 items = itemsNC
             };
 
             var (ok, error, ncVentaId) = await EnviarPayloadAsync(
                 establishment, payload, serieNC, nuevoNumero, motivo, ventaOriginal,
-                totalGravada, totalIgv, totalNC);
+                totalGravada, totalIgv, totalNC, ncVentaExistente);
 
             return (ok, error, ncVentaId);
         }
@@ -321,7 +425,8 @@ namespace FacturacionAPI.Services
             Venta ventaOriginal,
             decimal totalGravada,
             decimal totalIgv,
-            decimal totalNC)
+            decimal totalNC,
+            Venta? ncVentaExistente = null)
         {
             var http = _httpClientFactory.CreateClient();
             http.DefaultRequestHeaders.Add("Authorization", $"Token token=\"{establishment.TokenNubefact}\"");
@@ -350,6 +455,21 @@ namespace FacturacionAPI.Services
             }
             catch { }
 
+            if (ncVentaExistente != null)
+            {
+                // 🔥 La NC ya existía (creada al encolar) y ya es visible para el usuario.
+                // Solo la completamos con la confirmación real de SUNAT, sin duplicarla.
+                ncVentaExistente.CodigoHash = codigoHash;
+                ncVentaExistente.EnlacePdf = enlacePdf;
+                ncVentaExistente.EnlaceXml = enlaceXml;
+                ncVentaExistente.EnlaceCdr = enlaceCdr;
+
+                await _context.SaveChangesAsync();
+
+                return (true, null, ncVentaExistente.Id);
+            }
+
+            // Compatibilidad con pendientes encolados antes de este cambio (sin NC pre-creada)
             var ncVenta = new Venta
             {
                 TipoComprobante = "NOTA DE CREDITO",
@@ -361,12 +481,17 @@ namespace FacturacionAPI.Services
                 TotalGravada = totalGravada,
                 TotalIgv = totalIgv,
                 Total = totalNC,
+                Moneda = ventaOriginal.Moneda,
                 Marca = ventaOriginal.Marca,
                 Modelo = ventaOriginal.Modelo,
                 Anio = ventaOriginal.Anio,
                 Placa = ventaOriginal.Placa,
                 FechaEmision = DateTime.Now,
                 Observaciones = motivo,
+                DocumentoRefSerie = ventaOriginal.Serie,
+                DocumentoRefNumero = ventaOriginal.Numero,
+                DocumentoRefTipo = ventaOriginal.TipoComprobante,
+                DocumentoRefFecha = ventaOriginal.FechaEmision,
                 CodigoHash = codigoHash,
                 EnlacePdf = enlacePdf,
                 EnlaceXml = enlaceXml,

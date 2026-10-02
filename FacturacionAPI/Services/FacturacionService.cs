@@ -9,6 +9,7 @@ using System.Text;
 using System.Text.Json;
 using FacturacionAPI.Models.Enums;
 using FacturacionAPI.Migrations;
+using System.Globalization;
 
 namespace FacturacionAPI.Services
 {
@@ -22,12 +23,46 @@ namespace FacturacionAPI.Services
 
         private const decimal IGV_PERCENT = 18m;
         private const decimal FACTOR_IGV = 1.18m;
+        private const decimal DEFAULT_TIPO_CAMBIO = 3.750m; // fallback si el establecimiento no tiene uno configurado
 
         public FacturacionService(HttpClient httpClient, SistemaVentasDbContext context, CajaService cajaService)
         {
             _context = context;
             _httpClient = httpClient;
             _cajaService = cajaService;
+        }
+
+        // ✅ Tipo de cambio SUNAT vigente (fuente: decolecta.com). Se usa siempre el más actual
+        // al emitir comprobantes en dólares, en vez de un valor fijo/desactualizado.
+        public async Task<decimal> GetTipoCambioSunatAsync()
+        {
+            try
+            {
+                var token = "sk_11161.sH5SZifYchdcGOaS5jqP0S1Q6bBhSj0e"; // LOPEZ
+                var url = "https://api.decolecta.com/v1/tipo-cambio/sunat";
+
+                var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+                var response = await _httpClient.SendAsync(request);
+                if (!response.IsSuccessStatusCode)
+                    return DEFAULT_TIPO_CAMBIO;
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+
+                var buyPriceStr = doc.RootElement.TryGetProperty("buy_price", out var buyProp)
+                    ? buyProp.GetString()
+                    : null;
+
+                return decimal.TryParse(buyPriceStr, NumberStyles.Any, CultureInfo.InvariantCulture, out var buyPrice)
+                    ? buyPrice
+                    : DEFAULT_TIPO_CAMBIO;
+            }
+            catch
+            {
+                return DEFAULT_TIPO_CAMBIO;
+            }
         }
         public async Task<IEnumerable<ItemsDto>> GetItemsByEstablishment(int establishmentId)
         {
@@ -224,9 +259,13 @@ namespace FacturacionAPI.Services
                 ? Math.Round(negativeItems.Sum(i => i.value) * -1, 2)
                 : 0;
 
-            decimal total = items.Sum(x => (decimal)x.total);
-            decimal totalGravada = Math.Round(total / FACTOR_IGV, 2);
-            decimal totalIgv = Math.Round(total - totalGravada, 2);
+            // 🔥 Si no migra a SUNAT, no se maneja IGV: el total es la suma tal cual de los ítems, sin agregarle IGV.
+            decimal total = request.no_migrar_sunat
+                ? Math.Round(positiveItems.Sum(i => i.value), 2)
+                : items.Sum(x => (decimal)x.total);
+
+            decimal totalGravada = request.no_migrar_sunat ? total : Math.Round(total / FACTOR_IGV, 2);
+            decimal totalIgv = request.no_migrar_sunat ? 0m : Math.Round(total - totalGravada, 2);
             decimal? detraccionMonto = null;
 
             if (request.detraccion)
@@ -268,6 +307,7 @@ namespace FacturacionAPI.Services
                 TotalGravada = totalGravada,
                 TotalIgv = totalIgv,
                 Total = Math.Round(total - descuentoGeneral, 2),
+                Moneda = request.items.FirstOrDefault()?.moneda ?? "PEN",
                 Observaciones = request.observaciones,
                 FechaEmision = DateTime.Now,
                 MetodoPago = request.metodo_pago,
@@ -289,17 +329,30 @@ namespace FacturacionAPI.Services
                             Importe = c.Importe
                         }).ToList()
                         : new List<Models.Entities.VentaCuota>(),
-                Detalles = request.items.Select(i => new VentaDetalle
-                {
-                    Codigo = i.code,
-                    Descripcion = i.description,
-                    Cantidad = i.cantidad,
-                    ValorUnitario = Math.Round(i.value / FACTOR_IGV, 2),
-                    PrecioUnitario = i.value,
-                    Subtotal = Math.Round((i.value / FACTOR_IGV) * i.cantidad, 2),
-                    Igv = Math.Round((i.value / FACTOR_IGV) * 0.18m * i.cantidad, 2),
-                    Total = Math.Round(i.value * i.cantidad, 2)
-                }).ToList()
+                // 🔥 Si no migra a SUNAT, no se maneja IGV: el detalle guarda el monto tal cual, sin desglose.
+                Detalles = request.items.Select(i => request.no_migrar_sunat
+                    ? new VentaDetalle
+                    {
+                        Codigo = i.code,
+                        Descripcion = i.description,
+                        Cantidad = i.cantidad,
+                        ValorUnitario = i.value,
+                        PrecioUnitario = i.value,
+                        Subtotal = Math.Round(i.value * i.cantidad, 2),
+                        Igv = 0m,
+                        Total = Math.Round(i.value * i.cantidad, 2)
+                    }
+                    : new VentaDetalle
+                    {
+                        Codigo = i.code,
+                        Descripcion = i.description,
+                        Cantidad = i.cantidad,
+                        ValorUnitario = Math.Round(i.value / FACTOR_IGV, 2),
+                        PrecioUnitario = i.value,
+                        Subtotal = Math.Round((i.value / FACTOR_IGV) * i.cantidad, 2),
+                        Igv = Math.Round((i.value / FACTOR_IGV) * 0.18m * i.cantidad, 2),
+                        Total = Math.Round(i.value * i.cantidad, 2)
+                    }).ToList()
             };
             var ventaAlCredito = new List<object>();
 
@@ -330,6 +383,8 @@ namespace FacturacionAPI.Services
                 foreach (var item in invoiceItemsLocal)
                     item.Invoiced = true;
 
+                await RegistrarSalidasKardexAsync(venta, invoiceItemsLocal);
+
                 await _context.SaveChangesAsync();
 
                 return new
@@ -345,6 +400,8 @@ namespace FacturacionAPI.Services
             // total_igv y total_gravada deben coincidir con la suma de las líneas (sin descontar)
             // el descuento_general reduce solo el total final
             decimal totalConDescuento = Math.Round(total - descuentoGeneral, 2);
+
+            decimal? tipoCambio = venta.Moneda == "USD" ? await GetTipoCambioSunatAsync() : (decimal?)null;
 
             var json = JsonSerializer.Serialize(new
             {
@@ -367,7 +424,13 @@ namespace FacturacionAPI.Services
                 enviar_automaticamente_a_la_sunat = true,
                 enviar_automaticamente_al_cliente = false,
                 venta_al_credito = ventaAlCredito,
-                moneda = 1,
+                moneda = venta.Moneda == "USD" ? 2 : 1, // 1 = Soles, 2 = Dólares Americanos (Nubefact)
+                tipo_de_cambio = tipoCambio,
+                observaciones = request.observaciones,
+                detraccion = request.detraccion,
+                detraccion_tipo = request.detraccion ? request.detraccion_tipo : null,
+                detraccion_total = request.detraccion ? detraccionMonto : null,
+                detraccion_porcentaje = request.detraccion ? request.detraccion_porcentaje : null,
                 items
             });
 
@@ -413,6 +476,8 @@ namespace FacturacionAPI.Services
                 item.Invoiced = true;
             }
 
+            await RegistrarSalidasKardexAsync(venta, invoiceItems);
+
             await _context.SaveChangesAsync();
 
             return new
@@ -422,6 +487,44 @@ namespace FacturacionAPI.Services
                 ventaId = venta.Id,
                 correlativo = $"{venta.Serie}-{venta.Numero}"
             };
+        }
+
+        // 🔥 KARDEX: registra la salida de stock de cada producto vendido,
+        // referenciando el documento (tipo/serie/número) que la origina.
+        private async Task RegistrarSalidasKardexAsync(Venta venta, List<InvoiceItem> invoiceItems)
+        {
+            var productIds = invoiceItems
+                .Where(ii => ii.ItemType == BudgetItemType.Product && ii.ProductId != null)
+                .Select(ii => ii.ProductId!.Value)
+                .Distinct()
+                .ToList();
+
+            if (!productIds.Any()) return;
+
+            var productos = await _context.Products
+                .Where(p => productIds.Contains(p.Id))
+                .ToDictionaryAsync(p => p.Id);
+
+            var documentoTipo = venta.TipoComprobante;
+
+            foreach (var item in invoiceItems.Where(ii => ii.ItemType == BudgetItemType.Product && ii.ProductId != null))
+            {
+                if (!productos.TryGetValue(item.ProductId!.Value, out var producto)) continue;
+
+                producto.Quantity -= (int)item.Quantity;
+
+                _context.ProductStockMovements.Add(new ProductStockMovement
+                {
+                    ProductId = producto.Id,
+                    MovementType = MovementType.Salida,
+                    Quantity = item.Quantity,
+                    DocumentoTipo = documentoTipo,
+                    DocumentoSerie = venta.Serie,
+                    DocumentoNumero = venta.Numero,
+                    VentaId = venta.Id,
+                    Notes = $"Salida por venta {documentoTipo} {venta.Serie}-{venta.Numero}"
+                });
+            }
         }
 
         public async Task<object> RegistrarVentaPruebasAsync(VentaRequest request, int establishmentId)
@@ -608,6 +711,8 @@ namespace FacturacionAPI.Services
 
             var motivoTexto = motivo ?? "ANULACION DE LA OPERACION";
 
+            decimal? tipoCambioNC = venta.Moneda == "USD" ? await GetTipoCambioSunatAsync() : (decimal?)null;
+
             var payload = new
             {
                 operacion = "generar_comprobante",
@@ -625,7 +730,8 @@ namespace FacturacionAPI.Services
                 cliente_denominacion = venta.ClienteNombre,
                 cliente_direccion = venta.Direccion,
                 fecha_de_emision = DateTime.Now.ToString("dd-MM-yyyy"),
-                moneda = 1,
+                moneda = venta.Moneda == "USD" ? 2 : 1, // 1 = Soles, 2 = Dólares Americanos (Nubefact)
+                tipo_de_cambio = tipoCambioNC,
                 porcentaje_de_igv = IGV_PERCENT,
                 descuento_global = descuentoGeneral > 0 ? descuentoGeneral : (decimal?)null,
                 total_descuento = descuentoGeneral > 0 ? descuentoGeneral : (decimal?)null,
@@ -663,7 +769,12 @@ namespace FacturacionAPI.Services
                 TotalGravada = totalGravadaNC,
                 TotalIgv = totalIgvNC,
                 Total = totalNC,
-                Observaciones = $"NC de {venta.TipoComprobante} {venta.Serie}-{venta.Numero}. {motivoTexto}",
+                Moneda = venta.Moneda,
+                Observaciones = motivoTexto,
+                DocumentoRefSerie = venta.Serie,
+                DocumentoRefNumero = venta.Numero,
+                DocumentoRefTipo = venta.TipoComprobante,
+                DocumentoRefFecha = venta.FechaEmision,
                 FechaEmision = DateTime.Now,
                 MetodoPago = venta.MetodoPago,
                 EstablishmentId = venta.EstablishmentId,
@@ -739,8 +850,13 @@ namespace FacturacionAPI.Services
                 Subtotal = venta.TotalGravada,
                 Igv = venta.TotalIgv,
                 Total = venta.Total,
+                Moneda = venta.Moneda,
                 Cond_venta = venta.Cond_venta,
                 Observaciones = venta.Observaciones,
+                DocumentoRefSerie = venta.DocumentoRefSerie,
+                DocumentoRefNumero = venta.DocumentoRefNumero,
+                DocumentoRefTipo = venta.DocumentoRefTipo,
+                DocumentoRefFecha = venta.DocumentoRefFecha,
 
                 Detalles = venta.Detalles.Select(d => new VentaDetalleItemDto
                 {
@@ -799,6 +915,7 @@ namespace FacturacionAPI.Services
                    Serie = v.Serie,
                    Numero = v.Numero,
                    Total = v.Total,
+                   Moneda = v.Moneda,
                    Fecha = v.FechaEmision.ToString("dd/MM/yyyy HH:mm"),
                    LinkPdf = v.EnlacePdf, // Campo devuelto por Nubefact (guárdalo al registrar)
                    LinkCdr = v.EnlaceCdr,
@@ -1033,10 +1150,27 @@ namespace FacturacionAPI.Services
                                                      .ThenInclude(v => v.Model)
                                      .ToListAsync();
 
+            var budgetItemIds = items
+                .Select(i => i.VehicleBudgetItemId)
+                .Distinct()
+                .ToList();
+
+            // 🔥 Código de la Orden de Trabajo dueña de cada ítem del presupuesto
+            //    (un internamiento puede tener varias OT: cada una factura sus propios ítems, no todos juntos)
+            var workOrderCodeByBudgetItem = await _context.WorkOrderItems
+                .Where(wi => budgetItemIds.Contains(wi.VehicleBudgetItemId))
+                .Include(wi => wi.WorkOrder)
+                .GroupBy(wi => wi.VehicleBudgetItemId)
+                .Select(g => g.OrderByDescending(wi => wi.CreatedAt).First())
+                .ToDictionaryAsync(wi => wi.VehicleBudgetItemId, wi => wi.WorkOrder.Code);
+
             return items.Select(i => new InvoiceSelectableItemDto
             {
                 BudgetItemId = i.Id,
-                IntakeCode = i.VehicleBudgetItem.VehicleBudget.Code,
+                BudgetCode = i.VehicleBudgetItem.VehicleBudget.Code,
+                IntakeCode = workOrderCodeByBudgetItem.TryGetValue(i.VehicleBudgetItemId, out var otCode)
+                    ? otCode
+                    : i.VehicleBudgetItem.VehicleBudget.Code,
                 ClienteNombre = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Client.Names,
                 ClienteNumero = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Client.DocumentIdentificationNumber,
                 Brand = i.VehicleBudgetItem.VehicleBudget.VehicleIntake.Vehicle.Brand.Name,

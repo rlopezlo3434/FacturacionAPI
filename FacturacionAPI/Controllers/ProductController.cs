@@ -24,6 +24,14 @@ namespace FacturacionAPI.Controllers
             return Ok(new { success = true, data });
         }
 
+        // ✅ GET: api/Product/kardex-salidas?productId=5
+        [HttpGet("kardex-salidas")]
+        public async Task<IActionResult> GetKardexSalidas([FromQuery] int? productId)
+        {
+            var data = await _service.GetKardexSalidasAsync(productId);
+            return Ok(new { success = true, data });
+        }
+
         // ✅ POST: api/Product
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ProductCreateUpdateDto dto)

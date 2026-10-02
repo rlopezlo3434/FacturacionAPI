@@ -24,6 +24,9 @@ namespace FacturacionAPI.Models.Entities
         public string? SerieNotaCredito { get; set; }   // NC para Boletas (ej: BC02)
         public string? SerieNotaCredito2 { get; set; }  // NC para Facturas (ej: FC02)
 
+        // Tipo de cambio (SOLES x USD) usado al emitir comprobantes en dólares. Ej: 3.750
+        public decimal? TipoCambio { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         [Required]

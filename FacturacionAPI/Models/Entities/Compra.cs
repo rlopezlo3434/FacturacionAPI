@@ -36,6 +36,9 @@ namespace FacturacionAPI.Models.Entities
         [MaxLength(10)]
         public string Moneda { get; set; } = "SOLES";
 
+        // true: los precios ingresados ya incluyen IGV. false: los precios son sin IGV.
+        public bool ConIgv { get; set; } = true;
+
         public ICollection<CompraDetalle> Detalles { get; set; } = new List<CompraDetalle>();
     }
 }

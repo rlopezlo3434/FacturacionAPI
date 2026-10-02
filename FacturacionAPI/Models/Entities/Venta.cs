@@ -14,6 +14,7 @@ namespace FacturacionAPI.Models.Entities
         public decimal TotalGravada { get; set; }
         public decimal TotalIgv { get; set; }
         public decimal Total { get; set; }
+        public string Moneda { get; set; } = "PEN";
         public string? Marca { get; set; }
         public string? Modelo { get; set; }
         public int? Anio { get; set; }
@@ -27,6 +28,12 @@ namespace FacturacionAPI.Models.Entities
         
         public DateTime FechaEmision { get; set; }
         public string? Observaciones { get; set; }
+
+        // 🔹 Documento de referencia (para Notas de Crédito): el comprobante que se modifica
+        public string? DocumentoRefSerie { get; set; }
+        public int? DocumentoRefNumero { get; set; }
+        public string? DocumentoRefTipo { get; set; }       // "FACTURA" o "BOLETA"
+        public DateTime? DocumentoRefFecha { get; set; }     // fecha de emisión del documento original
         public string? CodigoHash { get; set; }
         public string? EnlacePdf { get; set; }
         public string? EnlaceXml { get; set; }

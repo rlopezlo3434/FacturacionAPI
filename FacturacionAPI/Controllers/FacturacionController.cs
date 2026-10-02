@@ -47,6 +47,14 @@ namespace FacturacionAPI.Controllers
         }
 
         [Authorize]
+        [HttpGet("tipo-cambio")]
+        public async Task<IActionResult> GetTipoCambio()
+        {
+            var tipoCambio = await _facturacionService.GetTipoCambioSunatAsync();
+            return Ok(new { success = true, tipoCambio });
+        }
+
+        [Authorize]
         [HttpGet("documento/{numero}")]
         public async Task<IActionResult> GetDocumento(string numero, [FromQuery] string tipo)
         {
@@ -475,6 +483,90 @@ namespace FacturacionAPI.Controllers
         //        fileName);
         //}
 
+
+        // ✅ Reporte de documentos emitidos (Boleta, Factura, N/C) - solo cabecera
+        [Authorize]
+        [HttpGet("reporte-documentos")]
+        public async Task<IActionResult> ReporteDocumentos(DateTime? desde, DateTime? hasta)
+        {
+            ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
+            var establishmentId = int.Parse(User.FindFirst("establishmentId").Value);
+
+            var inicio = (desde ?? DateTime.Today.AddMonths(-1)).Date;
+            var fin = (hasta ?? DateTime.Today).Date.AddDays(1);
+
+            var ventas = await _context.Ventas
+                .Where(v => v.EstablishmentId == establishmentId
+                    && v.FechaEmision >= inicio
+                    && v.FechaEmision < fin
+                    && v.Serie != "N001")
+                .OrderByDescending(v => v.FechaEmision)
+                .ToListAsync();
+
+            using var package = new ExcelPackage();
+            var ws = package.Workbook.Worksheets.Add("Documentos Emitidos");
+
+            string[] headers =
+            {
+                "Tipo Documento", "Serie", "Número", "Fecha Emisión", "Cliente Documento", "Cliente Nombre",
+                "Dirección", "Moneda", "Subtotal", "IGV", "Total", "Condición de Venta", "Método de Pago",
+                "Detracción", "% Detracción", "Monto Detracción", "Doc. Referencia", "Observaciones",
+                "Estado", "Marca", "Modelo", "Año", "Placa"
+            };
+
+            for (int c = 0; c < headers.Length; c++)
+                ws.Cells[1, c + 1].Value = headers[c];
+
+            using (var range = ws.Cells[1, 1, 1, headers.Length])
+            {
+                range.Style.Font.Bold = true;
+                range.Style.Fill.PatternType = ExcelFillStyle.Solid;
+                range.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.LightGray);
+            }
+
+            int row = 2;
+            foreach (var v in ventas)
+            {
+                ws.Cells[row, 1].Value = v.TipoComprobante;
+                ws.Cells[row, 2].Value = v.Serie;
+                ws.Cells[row, 3].Value = v.Numero;
+                ws.Cells[row, 4].Value = v.FechaEmision.ToString("dd/MM/yyyy HH:mm");
+                ws.Cells[row, 5].Value = v.ClienteDocumento;
+                ws.Cells[row, 6].Value = v.ClienteNombre;
+                ws.Cells[row, 7].Value = v.Direccion;
+                ws.Cells[row, 8].Value = v.Moneda;
+                ws.Cells[row, 9].Value = v.TotalGravada;
+                ws.Cells[row, 9].Style.Numberformat.Format = "#,##0.00";
+                ws.Cells[row, 10].Value = v.TotalIgv;
+                ws.Cells[row, 10].Style.Numberformat.Format = "#,##0.00";
+                ws.Cells[row, 11].Value = v.Total;
+                ws.Cells[row, 11].Style.Numberformat.Format = "#,##0.00";
+                ws.Cells[row, 12].Value = v.Cond_venta;
+                ws.Cells[row, 13].Value = v.MetodoPago;
+                ws.Cells[row, 14].Value = v.Detraccion ? "Sí" : "No";
+                ws.Cells[row, 15].Value = v.DetraccionPorcentaje;
+                ws.Cells[row, 16].Value = v.DetraccionMonto;
+                ws.Cells[row, 17].Value = v.DocumentoRefSerie != null
+                    ? $"{v.DocumentoRefSerie}-{v.DocumentoRefNumero}"
+                    : "";
+                ws.Cells[row, 18].Value = v.Observaciones;
+                ws.Cells[row, 19].Value = v.IsAnnulled ? "Anulado" : "Vigente";
+                ws.Cells[row, 20].Value = v.Marca;
+                ws.Cells[row, 21].Value = v.Modelo;
+                ws.Cells[row, 22].Value = v.Anio;
+                ws.Cells[row, 23].Value = v.Placa;
+                row++;
+            }
+
+            if (ws.Dimension != null)
+                ws.Cells[ws.Dimension.Address].AutoFitColumns();
+
+            var excelBytes = package.GetAsByteArray();
+            var nombreArchivo = $"ReporteDocumentosEmitidos_{DateTime.Now:yyyyMMdd}.xlsx";
+
+            return File(excelBytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", nombreArchivo);
+        }
 
         [Authorize]
         [HttpGet("reporte-diario")]

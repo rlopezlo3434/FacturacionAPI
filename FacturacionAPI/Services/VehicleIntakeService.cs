@@ -264,11 +264,13 @@ namespace FacturacionAPI.Services
         public async Task<(bool Success, string Message)> UpdateVehicleIntakeAsync(
     int intakeId,
     CreateVehicleIntakeDto dto,
-    List<IFormFile>? images
+    List<IFormFile>? images,
+    List<IFormFile>? diagrams
 )
         {
             var intake = await _context.VehicleIntakes
                 .Include(x => x.InventoryItems)
+                .Include(x => x.ImagesDiagram)
                 .FirstOrDefaultAsync(x => x.Id == intakeId);
 
             if (intake == null)
@@ -357,7 +359,49 @@ namespace FacturacionAPI.Services
                 }
             }
 
-            // ❌ NO TOCAR DIAGRAMS (simplemente no hacer nada)
+            // 🔥 4. ACTUALIZAR DIAGRAMAS (SOBRESCRIBIR TRAZOS EXISTENTES)
+            if (diagrams != null && diagrams.Any())
+            {
+                var basePath = Path.Combine(
+                    _env.WebRootPath,
+                    "Intakes",
+                    intake.Id.ToString(),
+                    "diagrams"
+                );
+
+                if (!Directory.Exists(basePath))
+                    Directory.CreateDirectory(basePath);
+
+                foreach (var diagram in diagrams)
+                {
+                    if (!diagram.ContentType.StartsWith("image/"))
+                        continue;
+
+                    var fileName = diagram.FileName; // diagram-1.png / diagram-2.png
+                    var fullPath = Path.Combine(basePath, fileName);
+                    var markedImageUrl = $"/Intakes/{intake.Id}/diagrams/{fileName}";
+
+                    using (var stream = new FileStream(fullPath, FileMode.Create))
+                    {
+                        await diagram.CopyToAsync(stream);
+                    }
+
+                    // reemplazar el registro anterior del mismo diagrama (mismo archivo)
+                    var existing = intake.ImagesDiagram
+                        .Where(d => d.MarkedImageUrl == markedImageUrl)
+                        .ToList();
+
+                    if (existing.Any())
+                        _context.VehicleIntakeDiagram.RemoveRange(existing);
+
+                    _context.VehicleIntakeDiagram.Add(new VehicleIntakeDiagram
+                    {
+                        VehicleIntakeId = intake.Id,
+                        MarkedImageUrl = markedImageUrl,
+                        CreatedAt = DateTime.Now
+                    });
+                }
+            }
 
             await _context.SaveChangesAsync();
 

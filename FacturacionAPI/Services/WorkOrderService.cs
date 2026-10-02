@@ -305,6 +305,83 @@ namespace FacturacionAPI.Services
             };
         }
 
+        // ✅ LIBERAR FACTURACIÓN: vuelve a marcar como "no facturados" los ítems de una OT
+        // para que puedan aparecer de nuevo en la pantalla de facturación y generarles un nuevo documento.
+        public async Task<(bool Success, string Message)> LiberarFacturacionAsync(int workOrderId)
+        {
+            var workOrder = await _context.WorkOrders
+                .Include(x => x.Items)
+                .FirstOrDefaultAsync(x => x.Id == workOrderId);
+
+            if (workOrder == null)
+                return (false, "Orden de trabajo no encontrada.");
+
+            var budgetItemIds = workOrder.Items
+                .Select(i => i.VehicleBudgetItemId)
+                .Distinct()
+                .ToList();
+
+            if (!budgetItemIds.Any())
+                return (false, "Esta orden de trabajo no tiene ítems asociados.");
+
+            var invoiceItems = await _context.InvoicesItem
+                .Where(ii => budgetItemIds.Contains(ii.VehicleBudgetItemId) && ii.Invoiced)
+                .ToListAsync();
+
+            if (!invoiceItems.Any())
+                return (false, "Esta orden de trabajo no tiene ítems facturados para liberar.");
+
+            foreach (var item in invoiceItems)
+                item.Invoiced = false;
+
+            await _context.SaveChangesAsync();
+
+            return (true, $"Se liberaron {invoiceItems.Count} ítem(s) de la OT {workOrder.Code}. Ya puedes generarle un nuevo documento.");
+        }
+
+        // ✅ REPORTE EXCEL: cabecera + detalle de todas las OT activas
+        public async Task<List<WorkOrderReporteDto>> GetWorkOrdersReporteAsync()
+        {
+            var workOrders = await _context.WorkOrders
+                .Include(x => x.VehicleIntake).ThenInclude(i => i.Vehicle).ThenInclude(v => v.Brand)
+                .Include(x => x.VehicleIntake).ThenInclude(i => i.Vehicle).ThenInclude(v => v.Model)
+                .Include(x => x.VehicleIntake).ThenInclude(i => i.Client)
+                .Include(x => x.Items).ThenInclude(i => i.VehicleBudgetItem).ThenInclude(bi => bi.Product)
+                .Include(x => x.Items).ThenInclude(i => i.VehicleBudgetItem).ThenInclude(bi => bi.ServiceMaster)
+                .Include(x => x.Items).ThenInclude(i => i.VehicleBudgetItem).ThenInclude(bi => bi.VehicleBudget)
+                .Where(x => x.IsActive)
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync();
+
+            return workOrders.Select(wo => new WorkOrderReporteDto
+            {
+                Code = wo.Code,
+                Correlativo = wo.VehicleIntake.Correlativo,
+                CreatedAt = wo.CreatedAt,
+                Mode = (int)wo.VehicleIntake.Mode,
+                IsCompleted = wo.Items.Any() && wo.Items.All(i => i.IsCompleted),
+                ClienteNombre = wo.VehicleIntake.Client.Names,
+                Placa = wo.VehicleIntake.Vehicle.Plate,
+                Marca = wo.VehicleIntake.Vehicle.Brand.Name,
+                Modelo = wo.VehicleIntake.Vehicle.Model.Name,
+                Moneda = wo.Items.FirstOrDefault()?.VehicleBudgetItem.VehicleBudget.Moneda ?? "PEN",
+                Total = wo.Items.Sum(i => i.VehicleBudgetItem.TotalPrice),
+                Items = wo.Items.Select(i => new WorkOrderReporteItemDto
+                {
+                    Tipo = i.VehicleBudgetItem.ItemType == BudgetItemType.Product ? "Producto" : "Servicio",
+                    Descripcion = i.VehicleBudgetItem.ProductId != null
+                        ? i.VehicleBudgetItem.Product!.Name
+                        : i.VehicleBudgetItem.ServiceMaster!.Name,
+                    Cantidad = i.VehicleBudgetItem.Quantity,
+                    PrecioUnitario = i.VehicleBudgetItem.UnitPrice,
+                    Descuento = i.VehicleBudgetItem.Discount,
+                    Subtotal = i.VehicleBudgetItem.TotalPrice,
+                    IsCompleted = i.IsCompleted,
+                    Observaciones = i.Observations
+                }).ToList()
+            }).ToList();
+        }
+
         // ✅ UPDATE CHECKLIST ITEMS
         public async Task<(bool Success, string Message)> UpdateWorkOrderItemsAsync(WorkOrderUpdateItemsDto dto)
         {

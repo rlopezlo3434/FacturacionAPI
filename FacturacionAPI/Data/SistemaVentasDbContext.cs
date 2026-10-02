@@ -46,6 +46,7 @@ namespace FacturacionAPI.Data
         public DbSet<Item> Items { get; set; }
         public DbSet<Stock> Stock { get; set; }
         public DbSet<StockMovement> StockMovement { get; set; }
+        public DbSet<ProductStockMovement> ProductStockMovements { get; set; }
         public DbSet<ProductDefinition> ProductDefinition { get; set; }
         public DbSet<ChildrenClient> ChildrenClient { get; set; }
         public DbSet<Promotion> Promotion { get; set; }
