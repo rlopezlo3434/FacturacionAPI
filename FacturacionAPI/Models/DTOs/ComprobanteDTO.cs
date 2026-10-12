@@ -26,6 +26,7 @@ namespace FacturacionAPI.Models.DTOs
         public decimal? detraccion_total { get; set; }
         public string? vehiculo_placa { get; set; }
         public bool no_migrar_sunat { get; set; } = false;
+        public bool recalcular_desde_subtotal { get; set; } = false;
     }
 
     public class VentaCuota

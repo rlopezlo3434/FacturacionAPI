@@ -1362,7 +1362,7 @@ body {{
         public string GenerarQrBase64(VentaDetalleResponseDto venta)
         {
             string tipoComprobante = venta.TipoComprobante == "FACTURA" ? "01" : "03";
-            string tipoDocCliente = venta.ClienteDocumento.Length == 11 ? "6" : "1";
+            string tipoDocCliente = FacturacionService.DeterminarTipoDocumento(venta.ClienteDocumento).ToString();
 
             string qrTexto = $"{venta.ClienteDocumento}|{tipoComprobante}|{venta.Serie}|{venta.Numero:D8}|0|{venta.Igv:0.00}|{venta.Total:0.00}|{venta.FechaEmision:dd/MM/yyyy}|{tipoDocCliente}|{venta.ClienteDocumento}";
 
@@ -2241,7 +2241,12 @@ body {{
 
             string doc = data.VehicleIntake.Client.DocumentIdentificationNumber;
 
-            string tipo = doc != null && doc.Trim().Length == 8 ? "DNI" : "RUC";
+            string tipo = (doc?.Trim().Length ?? 0) switch
+            {
+                8 => "DNI",
+                9 or 12 => "CE",
+                _ => "RUC"
+            };
             return $@"
                 <style>
 
@@ -2618,8 +2623,9 @@ body {{
                 .Where(i => i.ServicePackageId == null && i.Service != null && i.Service.IsThird == false && i.Service.IsDiscount == false)
                 .ToList();
 
+            // 🔥 Solo los descuentos de SERVICIOS (IsThird == false); los de IsThird == true van en OTROS.
             var descuentos = data.Items
-                .Where(i => i.Service != null && i.Service.IsDiscount == true)
+                .Where(i => i.Service != null && i.Service.IsDiscount == true && i.Service.IsThird == false)
                 .ToList();
 
             bool tieneDescuento = false;
@@ -2815,9 +2821,15 @@ body {{
                 })
                 .ToList();
 
+            // 🔥 Descuentos de SERVICIOS (IsThird == false); los de IsThird == true van en OTROS.
             var descuentos = allItems
-                .Where(i => i.Service != null && i.Service.IsDiscount == true)
+                .Where(i => i.Service != null && i.Service.IsDiscount == true && i.Service.IsThird == false)
                 .ToList();
+
+            var descuentosOtros = allItems
+                .Where(i => i.Service != null && i.Service.IsDiscount == true && i.Service.IsThird == true)
+                .ToList();
+
             // 🔥 4. Separar OTROS vs NORMALES
             var otros = servicios
                 .Where(x => x.Item.Service != null && x.Item.Service.IsThird && !x.Item.Service.IsDiscount)
@@ -2934,7 +2946,7 @@ string filasDescuento = "";
             // 🔥 TABLA OTROS
             string tablaOtros = "";
 
-            if (otros.Any())
+            if (otros.Any() || descuentosOtros.Any())
             {
                 int itemOtros = 1;
                 decimal subtotalOtros = 0;
@@ -2956,6 +2968,21 @@ string filasDescuento = "";
 </tr>";
 
                     itemOtros++;
+                }
+
+                foreach (var desc in descuentosOtros)
+                {
+                    subtotalOtros += desc.TotalPrice;
+
+                    filasOtros += $@"
+<tr style='background:#fff3cd;'>
+    <td class='center'>-</td>
+    <td class='center'>{desc.Quantity}</td>
+    <td class='center'>UND</td>
+    <td style='color:#b8860b;'>⬇ {desc.Service!.Name}</td>
+    <td class='right' style='color:#b8860b;'>{Math.Abs(desc.UnitPrice):0.00}</td>
+    <td class='right' style='color:#c0392b; font-weight:bold;'>-{Math.Abs(desc.TotalPrice):0.00}</td>
+</tr>";
                 }
 
                 tablaOtros = $@"
@@ -3063,7 +3090,12 @@ string filasDescuento = "";
                 .Where(i => i.Service != null && i.Service.IsThird && !i.Service.IsDiscount)
                 .ToList();
 
-            if (!otros.Any())
+            // 🔥 Descuentos marcados como IsThird == true: van en OTROS, no en SERVICIOS.
+            var descuentosOtros = data.Items
+                .Where(i => i.Service != null && i.Service.IsThird && i.Service.IsDiscount)
+                .ToList();
+
+            if (!otros.Any() && !descuentosOtros.Any())
                 return ""; // no mostrar sección si no hay
 
             var sb = new StringBuilder();
@@ -3135,6 +3167,22 @@ string filasDescuento = "";
                 item++;
             }
 
+            foreach (var desc in descuentosOtros)
+            {
+                subtotal += desc.TotalPrice;
+
+                sb.Append($@"
+<tr style='background:#fff3cd;'>
+    <td class='center'>-</td>
+    <td class='center'>{desc.Quantity}</td>
+    <td class='center'>UND</td>
+    <td style='color:#b8860b;'>⬇ {desc.Service!.Name}</td>
+    <td class='right' style='color:#b8860b;'>{Math.Abs(desc.UnitPrice):0.00}</td>
+    <td class='right' style='color:#c0392b; font-weight:bold;'>-{Math.Abs(desc.TotalPrice):0.00}</td>
+</tr>
+");
+            }
+
             sb.Append($@"
 <tr>
     <td colspan='5' class='right'><b>Sub total</b></td>
@@ -3190,8 +3238,12 @@ string filasDescuento = "";
                 </div>";
             }
 
-            var moneda = data[0].Moneda == "USD" ? "DOLARES" : "SOLES";
-            //var intake = await _context.VehicleIntakes.FirstOrDefaultAsync(x => x.Id == data[0].);
+            // 🔥 `data` puede traer varios presupuestos (uno por OT del internamiento), pero los
+            // totales de esta OT solo se arman con los ítems que realmente caen en `workOrderMap`.
+            // Por eso la moneda debe salir del presupuesto dueño de esos ítems, no de data[0] a ciegas.
+            var presupuestoDeEstaOt = data.FirstOrDefault(b => b.Items.Any(i => workOrderMap.ContainsKey(i.Id)));
+            var monedaCodigo = presupuestoDeEstaOt?.Moneda ?? data.FirstOrDefault()?.Moneda;
+            var moneda = monedaCodigo == "USD" ? "DOLARES" : "SOLES";
 
             return $@"
                     <style>

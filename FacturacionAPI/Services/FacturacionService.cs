@@ -32,6 +32,22 @@ namespace FacturacionAPI.Services
             _cajaService = cajaService;
         }
 
+        /// <summary>
+        /// Determina el código Nubefact de "cliente_tipo_de_documento" a partir del largo del
+        /// número de documento (sin selección manual): 8 = DNI, 11 = RUC, 9 o 12 = Carnet de
+        /// Extranjería. Cualquier otro largo cae a RUC (comportamiento previo) como respaldo.
+        /// </summary>
+        public static int DeterminarTipoDocumento(string? numeroDocumento)
+        {
+            return (numeroDocumento?.Length ?? 0) switch
+            {
+                8 => 1,       // DNI
+                11 => 6,      // RUC
+                9 or 12 => 4, // Carnet de Extranjería
+                _ => 6
+            };
+        }
+
         // ✅ Tipo de cambio SUNAT vigente (fuente: decolecta.com). Se usa siempre el más actual
         // al emitir comprobantes en dólares, en vez de un valor fijo/desactualizado.
         public async Task<decimal> GetTipoCambioSunatAsync()
@@ -233,12 +249,36 @@ namespace FacturacionAPI.Services
             var positiveItems = request.items.Where(i => i.value >= 0).ToList();
             var negativeItems = request.items.Where(i => i.value < 0).ToList();
 
+            // 🔥 Si no migra a SUNAT, el IGV SIEMPRE es 0 (sin excepciones).
+            // "Recalcular desde subtotal" solo aplica cuando sí migra a SUNAT: el subtotal
+            // original de cada ítem pasa a ser su nuevo total, y el IGV se recalcula desde ahí.
+            bool sinIgv = request.no_migrar_sunat;
+
             var items = positiveItems.Select(i =>
             {
-                decimal subtotal = i.value;
-                decimal valorUnitario = subtotal / i.cantidad;
-                decimal igv = Math.Round(subtotal * 0.18m, 2);
-                decimal total = Math.Round(subtotal + igv, 2);
+                decimal subtotal, igv, total, valorUnitario;
+
+                if (sinIgv)
+                {
+                    subtotal = i.value;
+                    total = i.value;
+                    igv = 0m;
+                    valorUnitario = subtotal / i.cantidad;
+                }
+                else if (request.recalcular_desde_subtotal)
+                {
+                    total = i.value;
+                    subtotal = Math.Round(total / FACTOR_IGV, 2);
+                    igv = Math.Round(total - subtotal, 2);
+                    valorUnitario = Math.Round(subtotal / i.cantidad, 2);
+                }
+                else
+                {
+                    subtotal = i.value;
+                    valorUnitario = subtotal / i.cantidad;
+                    igv = Math.Round(subtotal * 0.18m, 2);
+                    total = Math.Round(subtotal + igv, 2);
+                }
 
                 return new
                 {
@@ -259,13 +299,14 @@ namespace FacturacionAPI.Services
                 ? Math.Round(negativeItems.Sum(i => i.value) * -1, 2)
                 : 0;
 
-            // 🔥 Si no migra a SUNAT, no se maneja IGV: el total es la suma tal cual de los ítems, sin agregarle IGV.
-            decimal total = request.no_migrar_sunat
+            // 🔥 Si no migra a SUNAT (y no se recalcula desde subtotal), no se maneja IGV:
+            // el total es la suma tal cual de los ítems, sin agregarle IGV.
+            decimal total = sinIgv
                 ? Math.Round(positiveItems.Sum(i => i.value), 2)
                 : items.Sum(x => (decimal)x.total);
 
-            decimal totalGravada = request.no_migrar_sunat ? total : Math.Round(total / FACTOR_IGV, 2);
-            decimal totalIgv = request.no_migrar_sunat ? 0m : Math.Round(total - totalGravada, 2);
+            decimal totalGravada = sinIgv ? total : Math.Round(total / FACTOR_IGV, 2);
+            decimal totalIgv = sinIgv ? 0m : Math.Round(total - totalGravada, 2);
             decimal? detraccionMonto = null;
 
             if (request.detraccion)
@@ -329,8 +370,9 @@ namespace FacturacionAPI.Services
                             Importe = c.Importe
                         }).ToList()
                         : new List<Models.Entities.VentaCuota>(),
-                // 🔥 Si no migra a SUNAT, no se maneja IGV: el detalle guarda el monto tal cual, sin desglose.
-                Detalles = request.items.Select(i => request.no_migrar_sunat
+                // 🔥 Si no migra a SUNAT (y no se recalcula desde subtotal), el detalle guarda el
+                // monto tal cual, sin desglose de IGV.
+                Detalles = request.items.Select(i => sinIgv
                     ? new VentaDetalle
                     {
                         Codigo = i.code,
@@ -412,7 +454,7 @@ namespace FacturacionAPI.Services
                 descuento_general = descuentoGeneral > 0 ? descuentoGeneral : (decimal?)null,
                 total_descuento = descuentoGeneral > 0 ? descuentoGeneral : (decimal?)null,
                 numero = nuevoCorrelativo,
-                cliente_tipo_de_documento = int.Parse(request.cliente_tipo_documento),
+                cliente_tipo_de_documento = DeterminarTipoDocumento(request.cliente_numero),
                 cliente_numero_de_documento = request.cliente_numero,
                 cliente_denominacion = request.cliente_nombre,
                 fecha_de_emision = request.fecha_emision?.ToString("dd-MM-yyyy"),
@@ -725,7 +767,7 @@ namespace FacturacionAPI.Services
                 documento_que_se_modifica_tipo = tipoOriginal,
                 documento_que_se_modifica_serie = venta.Serie,
                 documento_que_se_modifica_numero = venta.Numero,
-                cliente_tipo_de_documento = venta.ClienteDocumento.Length == 8 ? 1 : 6,
+                cliente_tipo_de_documento = DeterminarTipoDocumento(venta.ClienteDocumento),
                 cliente_numero_de_documento = venta.ClienteDocumento,
                 cliente_denominacion = venta.ClienteNombre,
                 cliente_direccion = venta.Direccion,

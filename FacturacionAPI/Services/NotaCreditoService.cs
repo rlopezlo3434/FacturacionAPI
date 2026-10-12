@@ -328,10 +328,8 @@ namespace FacturacionAPI.Services
                 }
             };
 
-            // Inferir tipo de documento del cliente: 8 dígitos = DNI (1), 11 dígitos = RUC (6)
-            int tipoDocCliente = ventaOriginal.ClienteDocumento?.Length == 11 ? 6
-                               : ventaOriginal.ClienteDocumento?.Length == 8  ? 1
-                               : 0;
+            // Inferir tipo de documento del cliente por largo: 8=DNI, 11=RUC, 9/12=Carnet de Extranjería
+            int tipoDocCliente = FacturacionService.DeterminarTipoDocumento(ventaOriginal.ClienteDocumento);
 
             decimal? tipoCambio = ventaOriginal.Moneda == "USD"
                 ? await _facturacionService.GetTipoCambioSunatAsync()
