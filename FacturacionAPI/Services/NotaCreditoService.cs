@@ -27,10 +27,11 @@ namespace FacturacionAPI.Services
         /// </summary>
         /// <param name="ventaOriginalId">ID de la venta (boleta o factura) que se va a anular.</param>
         /// <param name="reemplazadoPor">
-        ///   Serie y número del nuevo documento, por ej: "F002-15" o "B002-10".
-        ///   El prefijo (F/B) determina el texto del motivo.
+        ///   Opcional. Serie y número del nuevo documento, por ej: "F002-15" o "B002-10".
+        ///   El prefijo (F/B) determina el texto del motivo. Si no se envía, el motivo es
+        ///   simplemente "ANULACION DE LA OPERACION".
         /// </param>
-        public async Task<object> GenerarNotaCreditoAsync(int ventaOriginalId, string reemplazadoPor)
+        public async Task<object> GenerarNotaCreditoAsync(int ventaOriginalId, string? reemplazadoPor)
         {
             var ventaOriginal = await _context.Ventas
                 .Include(v => v.Detalles)
@@ -55,8 +56,16 @@ namespace FacturacionAPI.Services
                 ? (establishment.SerieNotaCredito2 ?? throw new ApplicationException("El establecimiento no tiene configurada SerieNotaCredito2 (NC para facturas)."))
                 : (establishment.SerieNotaCredito  ?? throw new ApplicationException("El establecimiento no tiene configurada SerieNotaCredito (NC para boletas)."));
 
-            string tipoReemplazo = reemplazadoPor.StartsWith("F", StringComparison.OrdinalIgnoreCase) ? "FACTURA" : "BOLETA";
-            string motivo = $"SE REMPLAZO POR {tipoReemplazo} {reemplazadoPor.ToUpper()}";
+            string motivo;
+            if (string.IsNullOrWhiteSpace(reemplazadoPor))
+            {
+                motivo = "ANULACION DE LA OPERACION";
+            }
+            else
+            {
+                string tipoReemplazo = reemplazadoPor.StartsWith("F", StringComparison.OrdinalIgnoreCase) ? "FACTURA" : "BOLETA";
+                motivo = $"SE REMPLAZO POR {tipoReemplazo} {reemplazadoPor.ToUpper()}";
+            }
 
             // Correlativo
             var ultimoNumero = await _context.Ventas
@@ -114,7 +123,7 @@ namespace FacturacionAPI.Services
                 ["total"]                                  = totalNC,
                 ["enviar_automaticamente_a_la_sunat"]      = true,
                 ["enviar_automaticamente_al_cliente"]      = false,
-                ["motivo_o_sustento_de_nota"]              = motivo,
+                ["motivo_o_sustento_de_la_nota_de_credito"] = motivo,
                 ["items"]                                  = itemsNC
             };
 

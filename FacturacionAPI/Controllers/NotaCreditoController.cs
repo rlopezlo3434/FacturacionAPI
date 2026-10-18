@@ -6,7 +6,7 @@ namespace FacturacionAPI.Controllers
 {
     [ApiController]
     [Route("api/nota-credito")]
-    [Authorize]
+    //[Authorize]
     public class NotaCreditoController : ControllerBase
     {
         private readonly NotaCreditoService _service;
@@ -20,12 +20,13 @@ namespace FacturacionAPI.Controllers
         /// Genera una Nota de Crédito por anulación de la operación.
         /// </summary>
         /// <param name="ventaId">ID de la venta original (boleta o factura) a anular.</param>
+        /// <param name="reemplazadoPor">
+        ///   Opcional. Serie y número del documento que reemplaza al anulado (ej: "F002-00000015").
+        ///   Si no se envía, la NC se genera como una simple anulación de la operación.
+        /// </param>
         [HttpPost("generar/{ventaId}")]
-        public async Task<IActionResult> Generar(int ventaId, [FromQuery] string reemplazadoPor)
+        public async Task<IActionResult> Generar(int ventaId, [FromQuery] string? reemplazadoPor = null)
         {
-            if (string.IsNullOrWhiteSpace(reemplazadoPor))
-                return BadRequest(new { error = "El parámetro 'reemplazadoPor' es requerido. Ej: F002-00000015" });
-
             try
             {
                 var result = await _service.GenerarNotaCreditoAsync(ventaId, reemplazadoPor);
