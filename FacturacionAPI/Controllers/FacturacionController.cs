@@ -698,6 +698,10 @@ namespace FacturacionAPI.Controllers
 
             foreach (var venta in ventas)
             {
+                bool esNotaCredito = venta.TipoComprobante != null &&
+                    venta.TipoComprobante.ToUpper().Contains("NOTA DE CREDITO");
+                int signo = esNotaCredito ? -1 : 1;
+
                 foreach (var detalle in venta.Detalles)
                 {
                     ws.Cells[row, 1].Value = $"{venta.TipoComprobante} {venta.Serie}-{venta.Numero}";
@@ -714,9 +718,9 @@ namespace FacturacionAPI.Controllers
                     ws.Cells[row, 11].Value = detalle.Descripcion;
                     ws.Cells[row, 12].Value = detalle.Cantidad;
                     ws.Cells[row, 13].Value = detalle.ValorUnitario;
-                    ws.Cells[row, 14].Value = detalle.Subtotal;
-                    ws.Cells[row, 15].Value = detalle.Igv;
-                    ws.Cells[row, 16].Value = detalle.Total;
+                    ws.Cells[row, 14].Value = signo * detalle.Subtotal;
+                    ws.Cells[row, 15].Value = signo * detalle.Igv;
+                    ws.Cells[row, 16].Value = signo * detalle.Total;
 
                     ws.Cells[row, 17].Value = venta.FechaEmision.ToString("HH:mm");
 
